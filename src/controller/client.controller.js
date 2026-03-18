@@ -135,7 +135,7 @@ export async function updateClientCode(req, res) {
 export async function updateClientPassword(req, res) {
     try {
         const {id} = req.params;
-        const currentUser = req.usuario || {};
+        const currentUser = req.auth || {};
         const currentClientId = currentUser.id || currentUser._id || currentUser.sub;
 
         if (currentUser.rol !== 'cliente' || String(currentClientId) !== String(id)) {

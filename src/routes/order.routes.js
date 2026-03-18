@@ -1,6 +1,6 @@
 import {Router} from 'express';
 import {
-    getOrders, getOrderById, setOrder, updateOrder, deleteOrder,
+    getOrders, getOrderById, getOrderByCode, setOrder, updateOrder, updateOrderClient, deleteOrder,
 } from '../controller/order.controller.js';
 import {verifyToken, authorize} from '../middleware/auth.middleware.js';
 import {requireBodyFields, requireAtLeastOneBodyField} from '../middleware/validation.middleware.js';
@@ -42,6 +42,36 @@ const router = Router();
  *         description: Error interno del servidor
  */
 router.get('/', verifyToken, authorize('administrador', 'usuario', 'invitado'), getOrders);
+
+/**
+ * @swagger
+ * /api/orders/code/{codigo}:
+ *   get:
+ *     summary: Obtener un pedido por código
+ *     tags: [Pedidos]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: codigo
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Datos del pedido
+ *       400:
+ *         description: Código inválido
+ *       401:
+ *         description: Token no proporcionado o inválido
+ *       403:
+ *         description: No tienes permiso para realizar esta acción
+ *       404:
+ *         description: Pedido no encontrado
+ *       500:
+ *         description: Error interno del servidor
+ */
+router.get('/code/:codigo', verifyToken, authorize('cliente'), getOrderByCode);
 
 /**
  * @swagger
@@ -173,6 +203,46 @@ router.post('/', verifyToken, authorize('administrador', 'usuario'), requireBody
  *         description: Error interno del servidor
  */
 router.patch('/:id', verifyToken, authorize('administrador', 'usuario'), requireAtLeastOneBodyField(['estado']), updateOrder);
+
+/**
+ * @swagger
+ * /api/orders/{id}/client:
+ *   patch:
+ *     summary: Reasignar el cliente de un pedido
+ *     tags: [Pedidos]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [cliente_id]
+ *             properties:
+ *               cliente_id:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Cliente del pedido actualizado
+ *       400:
+ *         description: Cliente inválido, campos no permitidos o ID inválido
+ *       401:
+ *         description: Token no proporcionado o inválido
+ *       403:
+ *         description: No tienes permiso para realizar esta acción
+ *       404:
+ *         description: Pedido no encontrado
+ *       500:
+ *         description: Error interno del servidor
+ */
+router.patch('/:id/client', verifyToken, authorize('cliente'), requireBodyFields(['cliente_id']), updateOrderClient);
 
 /**
  * @swagger

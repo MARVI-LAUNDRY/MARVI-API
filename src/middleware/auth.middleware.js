@@ -10,7 +10,7 @@ export function verifyToken(req, res, next) {
     }
 
     try {
-        req.usuario = jwt.verify(token, process.env.JWT_SECRET);
+        req.auth = jwt.verify(token, process.env.JWT_SECRET);
         next();
     } catch (err) {
         return res.status(401).json({success: false, message: 'Token inválido o expirado'});
@@ -20,7 +20,7 @@ export function verifyToken(req, res, next) {
 // Verifica que el usuario tenga uno de los roles permitidos para acceder a la ruta
 export function authorize(...roles) {
     return (req, res, next) => {
-        if (!roles.includes(req.usuario?.rol)) {
+        if (!roles.includes(req.auth?.rol)) {
             return res.status(403).json({success: false, message: 'No tienes permiso para realizar esta acción'});
         }
         next();

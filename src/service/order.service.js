@@ -6,6 +6,10 @@ import {redisClient} from '../config/redis.js';
 
 const CACHE_TTL = 300;
 
+function buildOrderCodeCacheKey(codigo) {
+    return `orders:code:${codigo}`;
+}
+
 function buildDomainError(code, field = null) {
     const err = new Error(code);
     err.code = code;
@@ -217,6 +221,22 @@ export async function getOrderByIdService(id) {
     return result;
 }
 
+export async function getOrderByCodeService(codigo) {
+    const normalizedCode = String(codigo || '').trim();
+    if (!normalizedCode) throw buildDomainError('MISSING_CODE', 'codigo');
+
+    const cacheKey = buildOrderCodeCacheKey(normalizedCode);
+    const cached = await redisClient.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+
+    const order = await Order.findOne({codigo: normalizedCode}).select('-__v').lean();
+    if (!order) return null;
+
+    const result = {success: true, data: order};
+    await redisClient.setex(cacheKey, CACHE_TTL, JSON.stringify(result));
+    return result;
+}
+
 export async function setOrderService(orderData) {
     const normalizedCode = String(orderData.codigo || '').trim();
     if (!normalizedCode) throw buildDomainError('MISSING_CODE', 'codigo');
@@ -261,12 +281,29 @@ export async function updateOrderService(id, orderData) {
 
     if (!updatedOrder) return null;
 
-    await Promise.all([invalidateCache(), redisClient.del(`orders:${id}`)]);
+    await Promise.all([invalidateCache(), redisClient.del(`orders:${id}`), redisClient.del(buildOrderCodeCacheKey(String(updatedOrder.codigo || '').trim())),]);
+    return updatedOrder;
+}
+
+export async function updateOrderClientService(id, clienteId) {
+    const normalizedClientId = String(clienteId || '').trim();
+    if (!normalizedClientId) throw buildDomainError('MISSING_CLIENT', 'cliente_id');
+
+    await validateClientOrThrow(normalizedClientId);
+
+    const updatedOrder = await Order.findByIdAndUpdate(id, {cliente_id: normalizedClientId}, {
+        returnDocument: 'after', runValidators: true,
+    }).select('-__v');
+
+    if (!updatedOrder) return null;
+
+    await Promise.all([invalidateCache(), redisClient.del(`orders:${id}`), redisClient.del(buildOrderCodeCacheKey(String(updatedOrder.codigo || '').trim())),]);
+
     return updatedOrder;
 }
 
 export async function deleteOrderService(id) {
-    const order = await Order.findById(id).select('productos');
+    const order = await Order.findById(id).select('productos codigo');
     if (!order) return null;
 
     const revertDelta = (order.productos || []).reduce((acc, item) => {
@@ -278,7 +315,7 @@ export async function deleteOrderService(id) {
     await applyStockDeltaByProductId(revertDelta);
     await Order.findByIdAndDelete(id);
 
-    await Promise.all([invalidateCache(), redisClient.del(`orders:${id}`)]);
+    await Promise.all([invalidateCache(), redisClient.del(`orders:${id}`), redisClient.del(buildOrderCodeCacheKey(String(order.codigo || '').trim())),]);
     return true;
 }
 
