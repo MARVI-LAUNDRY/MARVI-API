@@ -253,59 +253,11 @@ export async function setOrderService(orderData) {
 }
 
 export async function updateOrderService(id, orderData) {
-    const existing = await Order.findById(id).select('productos servicios');
-    if (!existing) return null;
+    const payload = {estado: orderData?.estado};
 
-    const payload = {...orderData};
-
-    if (Object.prototype.hasOwnProperty.call(payload, 'codigo')) {
-        payload.codigo = payload.codigo ? String(payload.codigo).trim() : null;
-        if (!payload.codigo) throw buildDomainError('MISSING_CODE', 'codigo');
-
-        const duplicate = await Order.findOne({_id: {$ne: id}, codigo: payload.codigo}).select('_id');
-        if (duplicate) throw buildDomainError('UNIQUE_FIELD_IN_USE', 'codigo');
-    }
-
-    if (Object.prototype.hasOwnProperty.call(payload, 'cliente_id')) {
-        await validateClientOrThrow(payload.cliente_id);
-    }
-
-    const hasProductsField = Object.prototype.hasOwnProperty.call(payload, 'productos');
-    const hasServicesField = Object.prototype.hasOwnProperty.call(payload, 'servicios');
-
-    const nextProducts = hasProductsField ? await normalizeOrderProducts(payload.productos) : existing.productos;
-
-    const nextServices = hasServicesField ? await normalizeOrderServices(payload.servicios) : existing.servicios;
-
-    if (hasProductsField || hasServicesField) {
-        assertAtLeastOneItem(nextProducts, nextServices);
-
-        payload.productos = nextProducts;
-        if (hasServicesField) payload.servicios = nextServices;
-        payload.total = calculateOrderTotal(nextProducts, nextServices);
-    }
-
-    if (!hasProductsField && !hasServicesField && Object.prototype.hasOwnProperty.call(payload, 'total')) {
-        delete payload.total;
-    }
-
-    const stockDelta = hasProductsField ? computeOrderStockDeltaByProductId(existing.productos, nextProducts) : {};
-
-    await applyStockDeltaByProductId(stockDelta);
-
-    let updatedOrder;
-    try {
-        updatedOrder = await Order.findByIdAndUpdate(id, payload, {
-            returnDocument: 'after', runValidators: true,
-        }).select('-__v');
-    } catch (err) {
-        const rollbackDelta = Object.keys(stockDelta).reduce((acc, key) => {
-            acc[key] = -stockDelta[key];
-            return acc;
-        }, {});
-        await applyStockDeltaByProductId(rollbackDelta);
-        throw mapDuplicateKeyToDomainError(err);
-    }
+    const updatedOrder = await Order.findByIdAndUpdate(id, payload, {
+        returnDocument: 'after', runValidators: true,
+    }).select('-__v');
 
     if (!updatedOrder) return null;
 

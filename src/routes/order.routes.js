@@ -136,8 +136,8 @@ router.post('/', verifyToken, authorize('administrador', 'usuario'), requireBody
 /**
  * @swagger
  * /api/orders/{id}:
- *   put:
- *     summary: Actualizar un pedido
+ *   patch:
+ *     summary: Actualizar el estado de un pedido
  *     tags: [Pedidos]
  *     security:
  *       - bearerAuth: []
@@ -148,49 +148,21 @@ router.post('/', verifyToken, authorize('administrador', 'usuario'), requireBody
  *         schema:
  *           type: string
  *     requestBody:
+ *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required: [estado]
  *             properties:
- *               codigo:
- *                 type: string
- *               cliente_id:
- *                 type: string
  *               estado:
  *                 type: string
  *                 enum: [creado, listo, completado, cancelado]
- *               productos:
- *                 type: array
- *                 items:
- *                   type: object
- *                   required: [producto_id, cantidad]
- *                   properties:
- *                     producto_id:
- *                       type: string
- *                     cantidad:
- *                       type: number
- *                     precio_unitario:
- *                       type: number
- *               servicios:
- *                 type: array
- *                 items:
- *                   type: object
- *                   required: [servicio_id, cantidad]
- *                   properties:
- *                     servicio_id:
- *                       type: string
- *                     cantidad:
- *                       type: number
- *                     precio_unitario:
- *                       type: number
  *     responses:
  *       200:
- *         description: Pedido actualizado
+ *         description: Estado del pedido actualizado
  *       400:
- *         description: Datos inválidos, inconsistentes o ID inválido
- *       409:
- *         description: El campo código ya está en uso
+ *         description: Estado inválido, campos no permitidos o ID inválido
  *       401:
  *         description: Token no proporcionado o inválido
  *       403:
@@ -200,7 +172,7 @@ router.post('/', verifyToken, authorize('administrador', 'usuario'), requireBody
  *       500:
  *         description: Error interno del servidor
  */
-router.put('/:id', verifyToken, authorize('administrador', 'usuario'), requireAtLeastOneBodyField(['codigo', 'cliente_id', 'estado', 'productos', 'servicios']), updateOrder);
+router.patch('/:id', verifyToken, authorize('administrador', 'usuario'), requireAtLeastOneBodyField(['estado']), updateOrder);
 
 /**
  * @swagger

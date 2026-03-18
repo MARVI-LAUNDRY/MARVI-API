@@ -21,6 +21,10 @@ const options = {
         ],
         servers: [
             {
+                url: 'https://marvi-api.onrender.com',
+                description: 'Servidor de en render',
+            },
+            {
                 url: 'http://localhost:2026',
                 description: 'Servidor de desarrollo',
             },

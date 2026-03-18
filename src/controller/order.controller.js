@@ -71,10 +71,21 @@ export async function setOrder(req, res) {
 export async function updateOrder(req, res) {
     try {
         const {id} = req.params;
-        const order = await updateOrderService(id, req.body);
+        const allowedFields = new Set(['estado']);
+        const bodyFields = Object.keys(req.body || {});
+        const invalidFields = bodyFields.filter((field) => !allowedFields.has(field));
+
+        if (invalidFields.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: `Solo se permite actualizar el campo estado. Campos no permitidos: ${invalidFields.join(', ')}`,
+            });
+        }
+
+        const order = await updateOrderService(id, {estado: req.body?.estado});
 
         if (!order) return res.status(404).json({success: false, message: 'Pedido no encontrado'});
-        return res.json({success: true, message: 'Pedido actualizado exitosamente', data: order});
+        return res.json({success: true, message: 'Estado del pedido actualizado exitosamente', data: order});
     } catch (err) {
         if (err.name === 'ValidationError' || err.name === 'CastError') {
             return res.status(400).json({success: false, message: err.message});
