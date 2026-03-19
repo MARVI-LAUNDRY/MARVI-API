@@ -201,8 +201,6 @@ router.get('/:id', verifyToken, authorize('administrador', 'usuario', 'invitado'
  *   post:
  *     summary: Crear un nuevo cliente
  *     tags: [Clientes]
- *     security:
- *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -242,12 +240,10 @@ router.get('/:id', verifyToken, authorize('administrador', 'usuario', 'invitado'
  *         description: Campo único en uso por un registro activo o conflicto con registro inactivo
  *       401:
  *         description: Token no proporcionado o inválido
- *       403:
- *         description: No tienes permiso para realizar esta acción
  *       500:
  *         description: Error interno del servidor
  */
-router.post('/', verifyToken, authorize('administrador', 'usuario', 'cliente'), requireBodyFields(['codigo', 'nombre']), setClient);
+router.post('/', verifyToken, requireBodyFields(['codigo', 'nombre']), setClient);
 
 /**
  * @swagger

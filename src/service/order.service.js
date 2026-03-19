@@ -10,6 +10,10 @@ function buildOrderCodeCacheKey(codigo) {
     return `orders:code:${codigo}`;
 }
 
+function buildOrdersByClientCacheKey(clienteId, search = '') {
+    return `orders:client:${clienteId}:q${search}`;
+}
+
 function buildDomainError(code, field = null) {
     const err = new Error(code);
     err.code = code;
@@ -27,7 +31,8 @@ function mapDuplicateKeyToDomainError(err) {
 
 const invalidateCache = async () => {
     try {
-        const keys = await redisClient.keys('orders:list:*');
+        const [listKeys, clientKeys] = await Promise.all([redisClient.keys('orders:list:*'), redisClient.keys('orders:client:*'),]);
+        const keys = [...listKeys, ...clientKeys];
         if (keys.length > 0) await redisClient.del(...keys);
     } catch (err) {
         console.error('invalidateOrderCache:', err.message);
@@ -201,6 +206,31 @@ export async function getOrdersService({page, limit, search}) {
 
     const result = {
         success: true, data: pedidos, pagination: {total, page, limit, totalPages: Math.ceil(total / limit)},
+    };
+
+    await redisClient.setex(cacheKey, CACHE_TTL, JSON.stringify(result));
+    return result;
+}
+
+export async function getOrdersByClientService({clienteId, search = ''}) {
+    const normalizedClientId = String(clienteId || '').trim();
+    if (!normalizedClientId) throw buildDomainError('MISSING_CLIENT', 'cliente_id');
+
+    const normalizedSearch = String(search || '').trim();
+    const cacheKey = buildOrdersByClientCacheKey(normalizedClientId, normalizedSearch);
+
+    const cached = await redisClient.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+
+    const escapedSearch = normalizedSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const filter = {
+        cliente_id: normalizedClientId, ...(normalizedSearch ? {codigo: {$regex: escapedSearch, $options: 'i'}} : {}),
+    };
+
+    const pedidos = await Order.find(filter).select('-__v').sort({createdAt: -1}).lean();
+
+    const result = {
+        success: true, data: pedidos, total: pedidos.length,
     };
 
     await redisClient.setex(cacheKey, CACHE_TTL, JSON.stringify(result));
