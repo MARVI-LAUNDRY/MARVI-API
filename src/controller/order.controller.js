@@ -1,5 +1,6 @@
 import {
     getOrdersService,
+    getOrdersByClientService,
     getOrderByIdService,
     getOrderByCodeService,
     setOrderService,
@@ -7,6 +8,7 @@ import {
     updateOrderClientService,
     deleteOrderService,
 } from '../service/order.service.js';
+import mongoose from 'mongoose';
 
 function handleOrderDomainError(err, res) {
     if (err.code === 'UNIQUE_FIELD_IN_USE') {
@@ -36,6 +38,33 @@ export async function getOrders(req, res) {
         return res.json(result);
     } catch (err) {
         console.error('getOrders:', err);
+        return res.status(500).json({success: false, message: 'Error interno del servidor'});
+    }
+}
+
+export async function getOrdersByClient(req, res) {
+    try {
+        const {clienteId} = req.params;
+        const normalizedClientId = String(clienteId || '').trim();
+
+        if (!mongoose.Types.ObjectId.isValid(normalizedClientId)) {
+            return res.status(400).json({success: false, message: 'ID de cliente inválido'});
+        }
+
+        if (req.auth?.rol === 'cliente' && String(req.auth?.id || '') !== normalizedClientId) {
+            return res.status(403).json({
+                success: false, message: 'No tienes permiso para consultar pedidos de otro cliente'
+            });
+        }
+
+        const search = req.query.search?.trim() || '';
+        const result = await getOrdersByClientService({clienteId: normalizedClientId, search});
+        return res.json(result);
+    } catch (err) {
+        const handled = handleOrderDomainError(err, res);
+        if (handled) return handled;
+
+        console.error('getOrdersByClient:', err);
         return res.status(500).json({success: false, message: 'Error interno del servidor'});
     }
 }

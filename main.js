@@ -41,7 +41,7 @@ const start = async () => {
     await connectRedis();
 
     app.listen(PORT, () => {
-        console.log(`http://localhost:${PORT}/api/docs`);
+        console.log(`Consulta la documentación en la ruta: /api/docs`);
     });
 };
 

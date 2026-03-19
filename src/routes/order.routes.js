@@ -1,6 +1,6 @@
 import {Router} from 'express';
 import {
-    getOrders, getOrderById, getOrderByCode, setOrder, updateOrder, updateOrderClient, deleteOrder,
+    getOrders, getOrdersByClient, getOrderById, getOrderByCode, setOrder, updateOrder, updateOrderClient, deleteOrder,
 } from '../controller/order.controller.js';
 import {verifyToken, authorize} from '../middleware/auth.middleware.js';
 import {requireBodyFields, requireAtLeastOneBodyField} from '../middleware/validation.middleware.js';
@@ -72,6 +72,39 @@ router.get('/', verifyToken, authorize('administrador', 'usuario', 'invitado'), 
  *         description: Error interno del servidor
  */
 router.get('/code/:codigo', verifyToken, authorize('cliente'), getOrderByCode);
+
+/**
+ * @swagger
+ * /api/orders/client/{clienteId}:
+ *   get:
+ *     summary: Listar pedidos de un cliente (sin paginación)
+ *     tags: [Pedidos]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: clienteId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Búsqueda por texto en código de pedido
+ *     responses:
+ *       200:
+ *         description: Lista de pedidos del cliente
+ *       400:
+ *         description: ID de cliente inválido
+ *       401:
+ *         description: Token no proporcionado o inválido
+ *       403:
+ *         description: No tienes permiso para realizar esta acción
+ *       500:
+ *         description: Error interno del servidor
+ */
+router.get('/client/:clienteId', verifyToken, authorize('administrador', 'usuario', 'invitado', 'cliente'), getOrdersByClient);
 
 /**
  * @swagger
