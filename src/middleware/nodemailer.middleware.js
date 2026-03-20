@@ -3,7 +3,7 @@ import transporter from "../config/nodemailer.js";
 export const sendEmail = async ({destino, asunto, html}) => {
     try {
         const info = await transporter.sendMail({
-            from: "Lavandería MARVI",
+            from: '"Lavandería MARVI" <no-reply>',
             to: destino,
             subject: asunto,
             html: html,
