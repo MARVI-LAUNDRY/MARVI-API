@@ -4,7 +4,7 @@ import Client from '../model/client.model.js';
 import bcrypt from "bcrypt";
 import jwt from 'jsonwebtoken';
 import {redisClient} from "../config/redis.js";
-import {sendEmail} from "../middleware/nodemailer.middleware.js";
+import {sendEmail} from "../middleware/mail.middleware.js";
 import {randomInt} from 'node:crypto';
 import fs from "node:fs";
 

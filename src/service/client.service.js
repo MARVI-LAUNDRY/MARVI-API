@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt';
 import Client from '../model/client.model.js';
 import {redisClient} from '../config/redis.js';
 import fs from "node:fs";
-import {sendEmail} from "../middleware/nodemailer.middleware.js";
+import {sendEmail} from "../middleware/mail.middleware.js";
 
 const SALT_ROUNDS = 10;
 const CACHE_TTL = 300;
