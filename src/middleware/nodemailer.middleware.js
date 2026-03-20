@@ -1,9 +1,9 @@
-import transporter from "../config/nodemailer.js";
+import transporter, {mailSender} from "../config/nodemailer.js";
 
 export const sendEmail = async ({destino, asunto, html}) => {
     try {
         const info = await transporter.sendMail({
-            from: "Lavandería MARVI",
+            from: `"Lavandería MARVI" <${mailSender}>`,
             to: destino,
             subject: asunto,
             html: html,
@@ -21,7 +21,12 @@ export const sendEmail = async ({destino, asunto, html}) => {
         console.debug("Correo enviado: %s", info.messageId);
         return true
     } catch (error) {
-        console.error("No se pudo enviar el correo,", error.message);
+        const isAuthError = ["EAUTH", "invalid_grant"].includes(error?.code) || error?.responseCode === 535;
+        if (isAuthError) {
+            console.error("No se pudo autenticar con Gmail API. Revisa CLIENT_ID, CLIENT_SECRET y REFRESH_TOKEN.");
+        } else {
+            console.error("No se pudo enviar el correo:", error.message);
+        }
         return false;
     }
 };
