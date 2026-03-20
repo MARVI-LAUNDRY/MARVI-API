@@ -1,10 +1,12 @@
 import {Router} from 'express';
 import {
-    getUsers, getUserById, setUser, updateUser, updatePassword, deleteUser, updateUsername,
+    getUsers, getUserById, setUser, updateUser, updatePassword, deleteUser, updateUsername, updateUserProfileImage,
 } from '../controller/user.controller.js';
 import {forgotPasswordUser, loginUser, resetPasswordUser} from '../controller/login.controller.js';
 import {verifyToken, authorize} from '../middleware/auth.middleware.js';
-import {requireBodyFields, requireAtLeastOneBodyField} from '../middleware/validation.middleware.js';
+import {
+    requireBodyFields, requireAtLeastOneBodyField, requireOnlyBodyFields
+} from '../middleware/validation.middleware.js';
 
 const router = Router();
 
@@ -312,6 +314,47 @@ router.patch('/:id/username', verifyToken, authorize('administrador', 'usuario')
 
 /**
  * @swagger
+ * /api/users/{id}/profile-image:
+ *   patch:
+ *     summary: Cambiar imagen de perfil de un usuario
+ *     tags: [Usuarios]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [imagen_perfil]
+ *             properties:
+ *               imagen_perfil:
+ *                 type: string
+ *                 format: uri
+ *     responses:
+ *       200:
+ *         description: Imagen de perfil actualizada
+ *       400:
+ *         description: Campos inválidos
+ *       401:
+ *         description: Token no proporcionado o inválido
+ *       403:
+ *         description: No tienes permiso para realizar esta acción
+ *       404:
+ *         description: Usuario no encontrado
+ *       500:
+ *         description: Error interno del servidor
+ */
+router.patch('/:id/profile-image', verifyToken, authorize('administrador', 'usuario', 'invitado'), requireBodyFields(['imagen_perfil']), requireOnlyBodyFields(['imagen_perfil']), updateUserProfileImage);
+
+/**
+ * @swagger
  * /api/users/{id}/password:
  *   patch:
  *     summary: Cambiar contraseña de un usuario
@@ -350,7 +393,7 @@ router.patch('/:id/username', verifyToken, authorize('administrador', 'usuario')
  *       500:
  *         description: Error interno del servidor
  */
-router.patch('/:id/password', verifyToken, authorize('administrador', 'usuario'), requireBodyFields(['contrasena_nueva']), requireAtLeastOneBodyField(['contrasena_actual']), updatePassword);
+router.patch('/:id/password', verifyToken, authorize('administrador', 'usuario', 'invitado'), requireBodyFields(['contrasena_nueva']), requireAtLeastOneBodyField(['contrasena_actual']), updatePassword);
 
 /**
  * @swagger

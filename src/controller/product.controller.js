@@ -1,6 +1,13 @@
 import {
     getProductsService, getProductByIdService, setProductService, updateProductService, deleteProductService,
 } from '../service/product.service.js';
+import {deleteImage, getPublicId} from '../middleware/cloudinary.middleware.js';
+
+async function cleanupUploadedImage(file) {
+    const uploadedUrl = file?.path || file?.secure_url;
+    const publicId = getPublicId(uploadedUrl);
+    if (publicId) await deleteImage(publicId);
+}
 
 export async function getProducts(req, res) {
     try {
@@ -35,11 +42,17 @@ export async function getProductById(req, res) {
 
 export async function setProduct(req, res) {
     try {
-        const {data, reactivated} = await setProductService(req.body);
+        const payload = {...req.body};
+        const uploadedUrl = req.file?.path || req.file?.secure_url;
+        if (uploadedUrl) payload.imagen = uploadedUrl;
+
+        const {data, reactivated} = await setProductService(payload);
         const statusCode = reactivated ? 200 : 201;
         const message = reactivated ? 'Producto reactivado exitosamente' : 'Producto creado exitosamente';
         return res.status(statusCode).json({success: true, message, reactivated, data});
     } catch (err) {
+        await cleanupUploadedImage(req.file);
+
         if (err.name === 'ValidationError') {
             return res.status(400).json({success: false, message: err.message});
         }
@@ -65,11 +78,20 @@ export async function setProduct(req, res) {
 export async function updateProduct(req, res) {
     try {
         const {id} = req.params;
-        const product = await updateProductService(id, req.body);
+        const payload = {...req.body};
+        const uploadedUrl = req.file?.path || req.file?.secure_url;
+        if (uploadedUrl) payload.imagen = uploadedUrl;
 
-        if (!product) return res.status(404).json({success: false, message: 'Producto no encontrado'});
+        const product = await updateProductService(id, payload);
+
+        if (!product) {
+            await cleanupUploadedImage(req.file);
+            return res.status(404).json({success: false, message: 'Producto no encontrado'});
+        }
         return res.json({success: true, message: 'Producto actualizado exitosamente', data: product});
     } catch (err) {
+        await cleanupUploadedImage(req.file);
+
         if (err.name === 'ValidationError' || err.name === 'CastError') {
             return res.status(400).json({success: false, message: err.message});
         }

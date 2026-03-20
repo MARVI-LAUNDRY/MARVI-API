@@ -2,6 +2,16 @@ import {v2 as cloudinary} from 'cloudinary';
 import CloudinaryStorage from 'multer-storage-cloudinary';
 import multer from 'multer';
 
+const DEFAULT_MAX_FILE_SIZE_MB = 10;
+
+function getMaxFileSizeBytes() {
+    const maxFileSizeMB = Number(process.env.UPLOAD_MAX_FILE_SIZE_MB);
+    if (!Number.isFinite(maxFileSizeMB) || maxFileSizeMB <= 0) {
+        return DEFAULT_MAX_FILE_SIZE_MB * 1024 * 1024;
+    }
+    return Math.floor(maxFileSizeMB * 1024 * 1024);
+}
+
 // Configuración de credenciales
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -12,7 +22,7 @@ cloudinary.config({
 // Función para crear un uploader de multer con CloudinaryStorage
 export function createUploader(folder) {
     const storage = new CloudinaryStorage({
-        cloudinary, params: {
+        cloudinary: {v2: cloudinary}, params: {
             folder, allowed_formats: ['jpg', 'jpeg', 'png', 'webp'], transformation: [{
                 width: 500, height: 500, crop: 'fill', gravity: 'center'
             }, {
@@ -22,7 +32,8 @@ export function createUploader(folder) {
     });
 
     return multer({
-        storage, limits: {fileSize: 5 * 1024 * 1024}, // 5 MB máximo
+        storage,
+        limits: {fileSize: getMaxFileSizeBytes()},
     });
 }
 

@@ -1,13 +1,22 @@
 import {Router} from 'express';
 import {
-    getClients, getClientById, setClient, updateClient, updateClientCode, updateClientPassword, deleteClient,
+    getClients,
+    getClientById,
+    setClient,
+    updateClient,
+    updateClientCode,
+    updateClientPassword,
+    updateClientProfileImage,
+    deleteClient,
 } from '../controller/client.controller.js';
 import {
     forgotPasswordClient, loginClient, loginClientGoogle, resetPasswordClient,
 } from '../controller/login.controller.js';
 import {verifyToken, authorize} from '../middleware/auth.middleware.js';
 import {verifyGoogleIdToken} from '../middleware/google-auth.middleware.js';
-import {requireBodyFields, requireAtLeastOneBodyField} from '../middleware/validation.middleware.js';
+import {
+    requireBodyFields, requireAtLeastOneBodyField, requireOnlyBodyFields
+} from '../middleware/validation.middleware.js';
 
 const router = Router();
 
@@ -342,6 +351,47 @@ router.put('/:id', verifyToken, authorize('administrador', 'usuario', 'cliente')
  *         description: Error interno del servidor
  */
 router.patch('/:id/code', verifyToken, authorize('administrador', 'usuario', 'cliente'), requireBodyFields(['codigo']), updateClientCode);
+
+/**
+ * @swagger
+ * /api/clients/{id}/profile-image:
+ *   patch:
+ *     summary: Cambiar imagen de perfil de un cliente
+ *     tags: [Clientes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [imagen_perfil]
+ *             properties:
+ *               imagen_perfil:
+ *                 type: string
+ *                 format: uri
+ *     responses:
+ *       200:
+ *         description: Imagen de perfil actualizada
+ *       400:
+ *         description: Campos inválidos o ID inválido
+ *       401:
+ *         description: Token no proporcionado o inválido
+ *       403:
+ *         description: No tienes permiso para realizar esta acción
+ *       404:
+ *         description: Cliente no encontrado
+ *       500:
+ *         description: Error interno del servidor
+ */
+router.patch('/:id/profile-image', verifyToken, authorize('cliente'), requireBodyFields(['imagen_perfil']), requireOnlyBodyFields(['imagen_perfil']), updateClientProfileImage);
 
 /**
  * @swagger

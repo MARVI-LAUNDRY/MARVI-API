@@ -1,5 +1,6 @@
 import Service from '../model/service.model.js';
 import {redisClient} from '../config/redis.js';
+import {deleteImage, getPublicId} from '../middleware/cloudinary.middleware.js';
 
 const CACHE_TTL = 300;
 
@@ -74,12 +75,13 @@ export async function getServiceByIdService(id) {
 export async function setServiceService(serviceData) {
     const normalizedCode = String(serviceData.codigo || '').trim();
 
-    const conflict = await Service.findOne({codigo: normalizedCode}).select('estado');
+    const conflict = await Service.findOne({codigo: normalizedCode}).select('estado imagen');
     if (conflict?.estado === 'activo') {
         throw buildUniqueFieldInUseError('codigo');
     }
 
     if (conflict?.estado === 'inactivo') {
+        const previousImage = conflict.imagen || null;
         let reactivatedService;
         try {
             reactivatedService = await Service.findByIdAndUpdate(conflict._id, {
@@ -90,6 +92,11 @@ export async function setServiceService(serviceData) {
         }
 
         await Promise.all([invalidateCache(), redisClient.del(`services:${conflict._id}`)]);
+
+        if (serviceData.imagen && previousImage && previousImage !== serviceData.imagen) {
+            const previousPublicId = getPublicId(previousImage);
+            if (previousPublicId) await deleteImage(previousPublicId);
+        }
 
         const {__v: _, ...data} = reactivatedService.toObject();
         return {data, reactivated: true};
@@ -112,6 +119,9 @@ export async function setServiceService(serviceData) {
 
 export async function updateServiceService(id, serviceData) {
     const payload = {...serviceData};
+    const currentService = await Service.findById(id).select('imagen');
+
+    if (!currentService) return null;
 
     if (Object.prototype.hasOwnProperty.call(payload, 'codigo')) {
         payload.codigo = payload.codigo ? String(payload.codigo).trim() : null;
@@ -136,6 +146,12 @@ export async function updateServiceService(id, serviceData) {
     if (!service) return null;
 
     await Promise.all([invalidateCache(), redisClient.del(`services:${id}`)]);
+
+    if (payload.imagen && currentService.imagen && currentService.imagen !== payload.imagen) {
+        const previousPublicId = getPublicId(currentService.imagen);
+        if (previousPublicId) await deleteImage(previousPublicId);
+    }
+
     return service;
 }
 

@@ -4,8 +4,10 @@ import {
 } from '../controller/product.controller.js';
 import {verifyToken, authorize} from '../middleware/auth.middleware.js';
 import {requireAtLeastOneBodyField, requireBodyFields} from '../middleware/validation.middleware.js';
+import {createUploader} from '../middleware/cloudinary.middleware.js';
 
 const router = Router();
+const uploadProductImage = createUploader('marvi/productos');
 
 /**
  * @swagger
@@ -84,7 +86,7 @@ router.get('/:id', verifyToken, authorize('administrador', 'usuario', 'invitado'
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required: [codigo, nombre, unidad_medida, precio]
@@ -106,7 +108,7 @@ router.get('/:id', verifyToken, authorize('administrador', 'usuario', 'invitado'
  *                 enum: [activo, inactivo]
  *               imagen:
  *                 type: string
- *                 format: uri
+ *                 format: binary
  *     responses:
  *       200:
  *         description: Producto reactivado si ya existía en estado inactivo
@@ -123,7 +125,7 @@ router.get('/:id', verifyToken, authorize('administrador', 'usuario', 'invitado'
  *       500:
  *         description: Error interno del servidor
  */
-router.post('/', verifyToken, authorize('administrador', 'usuario'), requireBodyFields(['codigo', 'nombre', 'unidad_medida', 'precio']), setProduct);
+router.post('/', verifyToken, authorize('administrador', 'usuario'), uploadProductImage.single('imagen'), requireBodyFields(['codigo', 'nombre', 'unidad_medida', 'precio']), setProduct);
 
 /**
  * @swagger
@@ -141,7 +143,7 @@ router.post('/', verifyToken, authorize('administrador', 'usuario'), requireBody
  *           type: string
  *     requestBody:
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
@@ -162,7 +164,7 @@ router.post('/', verifyToken, authorize('administrador', 'usuario'), requireBody
  *                 enum: [activo, inactivo]
  *               imagen:
  *                 type: string
- *                 format: uri
+ *                 format: binary
  *     responses:
  *       200:
  *         description: Producto actualizado
@@ -179,7 +181,7 @@ router.post('/', verifyToken, authorize('administrador', 'usuario'), requireBody
  *       500:
  *         description: Error interno del servidor
  */
-router.put('/:id', verifyToken, authorize('administrador', 'usuario'), requireAtLeastOneBodyField(['codigo', 'nombre', 'descripcion', 'unidad_medida', 'precio', 'stock', 'estado', 'imagen']), updateProduct);
+router.put('/:id', verifyToken, authorize('administrador', 'usuario'), uploadProductImage.single('imagen'), requireAtLeastOneBodyField(['codigo', 'nombre', 'descripcion', 'unidad_medida', 'precio', 'stock', 'estado', 'imagen']), updateProduct);
 
 /**
  * @swagger

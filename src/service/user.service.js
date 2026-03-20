@@ -214,6 +214,22 @@ export async function updatePasswordService(id, contrasena_actual, contrasena_nu
     return true;
 }
 
+export async function updateUserProfileImageService(id, imagen_perfil) {
+    let user;
+    try {
+        user = await User.findByIdAndUpdate(id, {imagen_perfil}, {
+            returnDocument: 'after', runValidators: true,
+        }).select('-contrasena -__v');
+    } catch (err) {
+        throw mapDuplicateKeyToDomainError(err);
+    }
+
+    if (!user) return null;
+
+    await Promise.all([redisClient.del(`users:${id}`), invalidateCache()]);
+    return user;
+}
+
 export async function deleteUserService(id) {
     const user = await User.findByIdAndUpdate(id, {estado: 'inactivo'}, {returnDocument: 'after'}).select('-contrasena -__v');
 

@@ -1,5 +1,6 @@
 import Product from '../model/product.model.js';
 import {redisClient} from '../config/redis.js';
+import {deleteImage, getPublicId} from '../middleware/cloudinary.middleware.js';
 
 const CACHE_TTL = 300;
 
@@ -74,12 +75,13 @@ export async function getProductByIdService(id) {
 export async function setProductService(productData) {
     const normalizedCode = String(productData.codigo || '').trim();
 
-    const conflict = await Product.findOne({codigo: normalizedCode}).select('estado');
+    const conflict = await Product.findOne({codigo: normalizedCode}).select('estado imagen');
     if (conflict?.estado === 'activo') {
         throw buildUniqueFieldInUseError('codigo');
     }
 
     if (conflict?.estado === 'inactivo') {
+        const previousImage = conflict.imagen || null;
         let reactivatedProduct;
         try {
             reactivatedProduct = await Product.findByIdAndUpdate(conflict._id, {
@@ -90,6 +92,11 @@ export async function setProductService(productData) {
         }
 
         await Promise.all([invalidateCache(), redisClient.del(`products:${conflict._id}`)]);
+
+        if (productData.imagen && previousImage && previousImage !== productData.imagen) {
+            const previousPublicId = getPublicId(previousImage);
+            if (previousPublicId) await deleteImage(previousPublicId);
+        }
 
         const {__v: _, ...data} = reactivatedProduct.toObject();
         return {data, reactivated: true};
@@ -112,6 +119,9 @@ export async function setProductService(productData) {
 
 export async function updateProductService(id, productData) {
     const payload = {...productData};
+    const currentProduct = await Product.findById(id).select('imagen');
+
+    if (!currentProduct) return null;
 
     if (Object.prototype.hasOwnProperty.call(payload, 'codigo')) {
         payload.codigo = payload.codigo ? String(payload.codigo).trim() : null;
@@ -136,6 +146,12 @@ export async function updateProductService(id, productData) {
     if (!product) return null;
 
     await Promise.all([invalidateCache(), redisClient.del(`products:${id}`)]);
+
+    if (payload.imagen && currentProduct.imagen && currentProduct.imagen !== payload.imagen) {
+        const previousPublicId = getPublicId(currentProduct.imagen);
+        if (previousPublicId) await deleteImage(previousPublicId);
+    }
+
     return product;
 }
 

@@ -1,6 +1,13 @@
 import {
     getServicesService, getServiceByIdService, setServiceService, updateServiceService, deleteServiceService,
 } from '../service/service.service.js';
+import {deleteImage, getPublicId} from '../middleware/cloudinary.middleware.js';
+
+async function cleanupUploadedImage(file) {
+    const uploadedUrl = file?.path || file?.secure_url;
+    const publicId = getPublicId(uploadedUrl);
+    if (publicId) await deleteImage(publicId);
+}
 
 export async function getServices(req, res) {
     try {
@@ -35,11 +42,17 @@ export async function getServiceById(req, res) {
 
 export async function setService(req, res) {
     try {
-        const {data, reactivated} = await setServiceService(req.body);
+        const payload = {...req.body};
+        const uploadedUrl = req.file?.path || req.file?.secure_url;
+        if (uploadedUrl) payload.imagen = uploadedUrl;
+
+        const {data, reactivated} = await setServiceService(payload);
         const statusCode = reactivated ? 200 : 201;
         const message = reactivated ? 'Servicio reactivado exitosamente' : 'Servicio creado exitosamente';
         return res.status(statusCode).json({success: true, message, reactivated, data});
     } catch (err) {
+        await cleanupUploadedImage(req.file);
+
         if (err.name === 'ValidationError') {
             return res.status(400).json({success: false, message: err.message});
         }
@@ -65,11 +78,20 @@ export async function setService(req, res) {
 export async function updateService(req, res) {
     try {
         const {id} = req.params;
-        const service = await updateServiceService(id, req.body);
+        const payload = {...req.body};
+        const uploadedUrl = req.file?.path || req.file?.secure_url;
+        if (uploadedUrl) payload.imagen = uploadedUrl;
 
-        if (!service) return res.status(404).json({success: false, message: 'Servicio no encontrado'});
+        const service = await updateServiceService(id, payload);
+
+        if (!service) {
+            await cleanupUploadedImage(req.file);
+            return res.status(404).json({success: false, message: 'Servicio no encontrado'});
+        }
         return res.json({success: true, message: 'Servicio actualizado exitosamente', data: service});
     } catch (err) {
+        await cleanupUploadedImage(req.file);
+
         if (err.name === 'ValidationError' || err.name === 'CastError') {
             return res.status(400).json({success: false, message: err.message});
         }

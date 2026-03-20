@@ -5,6 +5,7 @@ import {
     updateUserService,
     updateUsernameService,
     updatePasswordService,
+    updateUserProfileImageService,
     deleteUserService,
 } from '../service/user.service.js';
 
@@ -119,6 +120,23 @@ export async function updatePassword(req, res) {
         });
 
         console.error('updatePassword:', err);
+        return res.status(500).json({success: false, message: 'Error interno del servidor'});
+    }
+}
+
+export async function updateUserProfileImage(req, res) {
+    try {
+        const {id} = req.params;
+        const {imagen_perfil} = req.body;
+
+        const user = await updateUserProfileImageService(id, imagen_perfil);
+
+        if (!user) return res.status(404).json({success: false, message: 'Usuario no encontrado'});
+        return res.json({success: true, message: 'Imagen de perfil actualizada exitosamente', data: user});
+    } catch (err) {
+        if (err.name === 'ValidationError') return res.status(400).json({success: false, message: err.message});
+
+        console.error('updateUserProfileImage:', err);
         return res.status(500).json({success: false, message: 'Error interno del servidor'});
     }
 }

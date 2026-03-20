@@ -262,6 +262,21 @@ export async function updateClientPasswordService(id, contrasena_actual, contras
     return true;
 }
 
+export async function updateClientProfileImageService(id, imagen_perfil) {
+    let client;
+    try {
+        client = await Client.findByIdAndUpdate(id, {imagen_perfil}, {
+            returnDocument: 'after', runValidators: true,
+        }).select('-contrasena -__v');
+    } catch (err) {
+        throw mapDuplicateKeyToDomainError(err);
+    }
+    if (!client) return null;
+
+    await Promise.all([redisClient.del(`clients:${id}`), invalidateCache()]);
+    return client;
+}
+
 export async function deleteClientService(id) {
     const client = await Client.findByIdAndUpdate(id, {estado: 'inactivo'}, {returnDocument: 'after'}).select('-contrasena -__v');
     if (!client) return null;

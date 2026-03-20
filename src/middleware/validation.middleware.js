@@ -11,8 +11,7 @@ export function requireBodyFields(fields) {
 
         if (missingFields.length > 0) {
             return res.status(400).json({
-                success: false,
-                message: `Campos obligatorios faltantes: ${missingFields.join(', ')}`,
+                success: false, message: `Campos obligatorios faltantes: ${missingFields.join(', ')}`,
             });
         }
 
@@ -24,14 +23,26 @@ export function requireAtLeastOneBodyField(fields) {
     return (req, res, next) => {
         const body = req.body || {};
 
-        const hasAnyField = fields.some((field) =>
-            Object.prototype.hasOwnProperty.call(body, field) && body[field] !== undefined
-        );
+        const hasAnyField = fields.some((field) => Object.prototype.hasOwnProperty.call(body, field) && body[field] !== undefined);
 
         if (!hasAnyField) {
             return res.status(400).json({
-                success: false,
-                message: `Debes enviar al menos uno de estos campos: ${fields.join(', ')}`,
+                success: false, message: `Debes enviar al menos uno de estos campos: ${fields.join(', ')}`,
+            });
+        }
+
+        next();
+    };
+}
+
+export function requireOnlyBodyFields(allowedFields) {
+    return (req, res, next) => {
+        const body = req.body || {};
+        const extraFields = Object.keys(body).filter((field) => !allowedFields.includes(field));
+
+        if (extraFields.length > 0) {
+            return res.status(400).json({
+                success: false, message: `Solo se permiten estos campos: ${allowedFields.join(', ')}`,
             });
         }
 

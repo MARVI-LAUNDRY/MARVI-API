@@ -5,6 +5,7 @@ import {
     updateClientService,
     updateClientCodeService,
     updateClientPasswordService,
+    updateClientProfileImageService,
     deleteClientService,
 } from '../service/client.service.js';
 
@@ -157,6 +158,31 @@ export async function updateClientPassword(req, res) {
         }
 
         console.error('updateClientPassword:', err);
+        return res.status(500).json({success: false, message: 'Error interno del servidor'});
+    }
+}
+
+export async function updateClientProfileImage(req, res) {
+    try {
+        const {id} = req.params;
+        const currentUser = req.auth || {};
+        const currentClientId = currentUser.id || currentUser._id || currentUser.sub;
+
+        if (currentUser.rol === 'cliente' && String(currentClientId) !== String(id)) {
+            return res.status(403).json({success: false, message: 'No tienes permiso para realizar esta acción'});
+        }
+
+        const {imagen_perfil} = req.body;
+        const client = await updateClientProfileImageService(id, imagen_perfil);
+
+        if (!client) return res.status(404).json({success: false, message: 'Cliente no encontrado'});
+        return res.json({success: true, message: 'Imagen de perfil actualizada exitosamente', data: client});
+    } catch (err) {
+        if (err.name === 'ValidationError' || err.name === 'CastError') {
+            return res.status(400).json({success: false, message: err.message});
+        }
+
+        console.error('updateClientProfileImage:', err);
         return res.status(500).json({success: false, message: 'Error interno del servidor'});
     }
 }

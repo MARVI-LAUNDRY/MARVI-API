@@ -10,6 +10,8 @@ use dbMARVI
         rol: "administrador",
         estado: "activo",
         imagen_perfil: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
     })
 
-db.dropDatabase()
+// db.dropDatabase()

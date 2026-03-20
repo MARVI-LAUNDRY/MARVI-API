@@ -30,6 +30,29 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Rutas
 app.use('/api', routes);
 
+app.use((err, req, res, next) => {
+    if (err?.name === 'MulterError') {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+            const maxMb = Number(process.env.UPLOAD_MAX_FILE_SIZE_MB || 10);
+            return res.status(413).json({
+                success: false,
+                message: `La imagen excede el tamaño máximo permitido (${maxMb} MB)`,
+            });
+        }
+
+        if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+            return res.status(400).json({
+                success: false,
+                message: 'Campo de archivo inválido. Debes enviar el archivo en el campo "imagen"',
+            });
+        }
+
+        return res.status(400).json({success: false, message: 'Error al procesar el archivo'});
+    }
+
+    next(err);
+});
+
 // Manejo 404
 app.use((req, res) => {
     res.status(404).json({success: false, message: 'Ruta no encontrada'});
