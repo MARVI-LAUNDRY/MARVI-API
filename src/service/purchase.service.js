@@ -30,9 +30,13 @@ const invalidateCache = async () => {
 };
 
 async function validateSupplierOrThrow(proveedorId) {
-    const supplier = await Supplier.findById(proveedorId).select('estado');
+    const supplier = await Supplier.findById(proveedorId).select('codigo nombre estado').lean();
     if (!supplier) throw buildDomainError('SUPPLIER_NOT_FOUND', 'proveedor_id');
     if (supplier.estado !== 'activo') throw buildDomainError('SUPPLIER_INACTIVE', 'proveedor_id');
+
+    return {
+        codigo: supplier.codigo, nombre: supplier.nombre,
+    };
 }
 
 async function normalizePurchaseItems(inputItems) {
@@ -171,14 +175,17 @@ export async function setPurchaseService(purchaseData) {
     const normalizedCode = String(purchaseData.codigo || '').trim();
     if (!normalizedCode) throw buildDomainError('MISSING_CODE', 'codigo');
 
-    await validateSupplierOrThrow(purchaseData.proveedor_id);
+    const supplierSnapshot = await validateSupplierOrThrow(purchaseData.proveedor_id);
 
     const {normalizedItems, total} = await normalizePurchaseItems(purchaseData.productos);
+
+    const payload = {...purchaseData};
+    delete payload.proveedor_snapshot;
 
     let newPurchase;
     try {
         newPurchase = await Purchase.create({
-            ...purchaseData, codigo: normalizedCode, productos: normalizedItems, total,
+            ...payload, codigo: normalizedCode, proveedor_snapshot: supplierSnapshot, productos: normalizedItems, total,
         });
     } catch (err) {
         throw mapDuplicateKeyToDomainError(err);
@@ -203,6 +210,7 @@ export async function updatePurchaseService(id, purchaseData) {
     if (!existing) return null;
 
     const payload = {...purchaseData};
+    delete payload.proveedor_snapshot;
 
     if (Object.prototype.hasOwnProperty.call(payload, 'codigo')) {
         payload.codigo = payload.codigo ? String(payload.codigo).trim() : null;
@@ -213,7 +221,7 @@ export async function updatePurchaseService(id, purchaseData) {
     }
 
     if (Object.prototype.hasOwnProperty.call(payload, 'proveedor_id')) {
-        await validateSupplierOrThrow(payload.proveedor_id);
+        payload.proveedor_snapshot = await validateSupplierOrThrow(payload.proveedor_id);
     }
 
     let normalizedItems = null;

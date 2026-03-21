@@ -18,11 +18,21 @@ const purchaseItemSchema = new mongoose.Schema({
     },
 }, {_id: false});
 
+const purchaseSupplierSnapshotSchema = new mongoose.Schema({
+    codigo: {
+        type: String, required: [true, 'El código del proveedor es obligatorio'], trim: true,
+    }, nombre: {
+        type: String, required: [true, 'El nombre del proveedor es obligatorio'], trim: true,
+    },
+}, {_id: false});
+
 const purchaseSchema = new mongoose.Schema({
     codigo: {
         type: String, required: [true, 'El código es obligatorio'], trim: true, unique: true,
     }, proveedor_id: {
         type: mongoose.Schema.Types.ObjectId, ref: 'Supplier', required: [true, 'El proveedor es obligatorio'],
+    }, proveedor_snapshot: {
+        type: purchaseSupplierSnapshotSchema, required: [true, 'El snapshot del proveedor es obligatorio'],
     }, productos: {
         type: [purchaseItemSchema], default: [],
     }, total: {

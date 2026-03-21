@@ -3,7 +3,9 @@ import {
     getPurchases, getPurchaseById, setPurchase, updatePurchase, deletePurchase,
 } from '../controller/purchase.controller.js';
 import {verifyToken, authorize} from '../middleware/auth.middleware.js';
-import {requireBodyFields, requireAtLeastOneBodyField} from '../middleware/validation.middleware.js';
+import {
+    requireBodyFields, requireAtLeastOneBodyField, requireOnlyBodyFields
+} from '../middleware/validation.middleware.js';
 
 const router = Router();
 
@@ -61,7 +63,7 @@ router.get('/', verifyToken, authorize('administrador', 'usuario', 'invitado'), 
  * @swagger
  * /api/purchases/{id}:
  *   get:
- *     summary: Obtener una compra por ID
+ *     summary: Obtener una compra por id
  *     tags: [Compras]
  *     security:
  *       - bearerAuth: []
@@ -75,7 +77,7 @@ router.get('/', verifyToken, authorize('administrador', 'usuario', 'invitado'), 
  *       200:
  *         description: Datos de la compra
  *       400:
- *         description: ID de compra inválido
+ *         description: Id de compra invalido
  *       401:
  *         description: Token no proporcionado o inválido
  *       403:
@@ -100,25 +102,20 @@ router.get('/:id', verifyToken, authorize('administrador', 'usuario', 'invitado'
  *       content:
  *         application/json:
  *           schema:
- *             type: object
+ *             allOf:
+ *               - $ref: '#/components/schemas/Purchase'
  *             required: [codigo, proveedor_id, productos]
  *             properties:
- *               codigo:
- *                 type: string
- *               proveedor_id:
- *                 type: string
- *               productos:
- *                 type: array
- *                 items:
- *                   type: object
- *                   required: [producto_id, cantidad]
- *                   properties:
- *                     producto_id:
- *                       type: string
- *                     cantidad:
- *                       type: number
- *                     precio_unitario:
- *                       type: number
+ *               _id:
+ *                 readOnly: true
+ *               proveedor_snapshot:
+ *                 readOnly: true
+ *               total:
+ *                 readOnly: true
+ *               createdAt:
+ *                 readOnly: true
+ *               updatedAt:
+ *                 readOnly: true
  *     responses:
  *       201:
  *         description: Compra creada
@@ -133,7 +130,7 @@ router.get('/:id', verifyToken, authorize('administrador', 'usuario', 'invitado'
  *       500:
  *         description: Error interno del servidor
  */
-router.post('/', verifyToken, authorize('administrador', 'usuario'), requireBodyFields(['codigo', 'proveedor_id', 'productos']), setPurchase);
+router.post('/', verifyToken, authorize('administrador', 'usuario'), requireOnlyBodyFields(['codigo', 'proveedor_id', 'productos']), requireBodyFields(['codigo', 'proveedor_id', 'productos']), setPurchase,);
 
 /**
  * @swagger
@@ -153,24 +150,19 @@ router.post('/', verifyToken, authorize('administrador', 'usuario'), requireBody
  *       content:
  *         application/json:
  *           schema:
- *             type: object
+ *             allOf:
+ *               - $ref: '#/components/schemas/Purchase'
  *             properties:
- *               codigo:
- *                 type: string
- *               proveedor_id:
- *                 type: string
- *               productos:
- *                 type: array
- *                 items:
- *                   type: object
- *                   required: [producto_id, cantidad]
- *                   properties:
- *                     producto_id:
- *                       type: string
- *                     cantidad:
- *                       type: number
- *                     precio_unitario:
- *                       type: number
+ *               _id:
+ *                 readOnly: true
+ *               proveedor_snapshot:
+ *                 readOnly: true
+ *               total:
+ *                 readOnly: true
+ *               createdAt:
+ *                 readOnly: true
+ *               updatedAt:
+ *                 readOnly: true
  *     responses:
  *       200:
  *         description: Compra actualizada
@@ -187,7 +179,7 @@ router.post('/', verifyToken, authorize('administrador', 'usuario'), requireBody
  *       500:
  *         description: Error interno del servidor
  */
-router.put('/:id', verifyToken, authorize('administrador', 'usuario'), requireAtLeastOneBodyField(['codigo', 'proveedor_id', 'productos']), updatePurchase);
+router.put('/:id', verifyToken, authorize('administrador', 'usuario'), requireOnlyBodyFields(['codigo', 'proveedor_id', 'productos']), requireAtLeastOneBodyField(['codigo', 'proveedor_id', 'productos']), updatePurchase,);
 
 /**
  * @swagger
@@ -207,7 +199,7 @@ router.put('/:id', verifyToken, authorize('administrador', 'usuario'), requireAt
  *       200:
  *         description: Compra eliminada
  *       400:
- *         description: ID inválido o no se pudo revertir stock
+ *         description: Id invalido o no se pudo revertir stock
  *       401:
  *         description: Token no proporcionado o inválido
  *       403:
