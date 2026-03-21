@@ -3,7 +3,9 @@ import {
     getPurchases, getPurchaseById, setPurchase, updatePurchase, deletePurchase,
 } from '../controller/purchase.controller.js';
 import {verifyToken, authorize} from '../middleware/auth.middleware.js';
-import {requireBodyFields, requireAtLeastOneBodyField} from '../middleware/validation.middleware.js';
+import {
+    requireBodyFields, requireAtLeastOneBodyField, requireOnlyBodyFields
+} from '../middleware/validation.middleware.js';
 
 const router = Router();
 
@@ -107,6 +109,10 @@ router.get('/:id', verifyToken, authorize('administrador', 'usuario', 'invitado'
  *                 type: string
  *               proveedor_id:
  *                 type: string
+ *                 description: ID del proveedor activo
+ *               proveedor_snapshot:
+ *                 readOnly: true
+ *                 description: Se genera automáticamente desde los datos actuales del proveedor
  *               productos:
  *                 type: array
  *                 items:
@@ -119,6 +125,8 @@ router.get('/:id', verifyToken, authorize('administrador', 'usuario', 'invitado'
  *                       type: number
  *                     precio_unitario:
  *                       type: number
+ *               total:
+ *                 readOnly: true
  *     responses:
  *       201:
  *         description: Compra creada
@@ -133,7 +141,7 @@ router.get('/:id', verifyToken, authorize('administrador', 'usuario', 'invitado'
  *       500:
  *         description: Error interno del servidor
  */
-router.post('/', verifyToken, authorize('administrador', 'usuario'), requireBodyFields(['codigo', 'proveedor_id', 'productos']), setPurchase);
+router.post('/', verifyToken, authorize('administrador', 'usuario'), requireOnlyBodyFields(['codigo', 'proveedor_id', 'productos']), requireBodyFields(['codigo', 'proveedor_id', 'productos']), setPurchase,);
 
 /**
  * @swagger
@@ -159,6 +167,10 @@ router.post('/', verifyToken, authorize('administrador', 'usuario'), requireBody
  *                 type: string
  *               proveedor_id:
  *                 type: string
+ *                 description: ID del proveedor activo
+ *               proveedor_snapshot:
+ *                 readOnly: true
+ *                 description: Se genera automáticamente desde los datos actuales del proveedor
  *               productos:
  *                 type: array
  *                 items:
@@ -171,6 +183,8 @@ router.post('/', verifyToken, authorize('administrador', 'usuario'), requireBody
  *                       type: number
  *                     precio_unitario:
  *                       type: number
+ *               total:
+ *                 readOnly: true
  *     responses:
  *       200:
  *         description: Compra actualizada
@@ -187,7 +201,7 @@ router.post('/', verifyToken, authorize('administrador', 'usuario'), requireBody
  *       500:
  *         description: Error interno del servidor
  */
-router.put('/:id', verifyToken, authorize('administrador', 'usuario'), requireAtLeastOneBodyField(['codigo', 'proveedor_id', 'productos']), updatePurchase);
+router.put('/:id', verifyToken, authorize('administrador', 'usuario'), requireOnlyBodyFields(['codigo', 'proveedor_id', 'productos']), requireAtLeastOneBodyField(['codigo', 'proveedor_id', 'productos']), updatePurchase,);
 
 /**
  * @swagger
@@ -220,4 +234,3 @@ router.put('/:id', verifyToken, authorize('administrador', 'usuario'), requireAt
 router.delete('/:id', verifyToken, authorize('administrador', 'usuario'), deletePurchase);
 
 export default router;
-
