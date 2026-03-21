@@ -122,6 +122,20 @@ router.post('/reset-password/:correo', requireBodyFields(['codigo', 'contrasena'
  *         schema:
  *           type: string
  *         description: Búsqueda de texto
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [usuario, nombre, correo, createdAt]
+ *           default: usuario
+ *         description: Campo por el que se ordena
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: asc
+ *         description: Dirección del ordenamiento
  *     responses:
  *       200:
  *         description: Lista de usuarios
@@ -138,7 +152,7 @@ router.get('/', verifyToken, authorize('administrador', 'usuario', 'invitado'), 
  * @swagger
  * /api/users/{id}:
  *   get:
- *     summary: Obtener un usuario por su id
+ *     summary: Obtener un usuario por su ID
  *     tags: [Usuarios]
  *     security:
  *       - bearerAuth: []

@@ -36,11 +36,21 @@ const orderItemServiceSchema = new mongoose.Schema({
     },
 }, {_id: false});
 
+const orderClientSnapshotSchema = new mongoose.Schema({
+    codigo: {
+        type: String, required: [true, 'El código del cliente es obligatorio'], trim: true,
+    }, nombre: {
+        type: String, required: [true, 'El nombre del cliente es obligatorio'], trim: true,
+    },
+}, {_id: false});
+
 const orderSchema = new mongoose.Schema({
     codigo: {
         type: String, required: [true, 'El código es obligatorio'], trim: true, unique: true,
     }, cliente_id: {
         type: mongoose.Schema.Types.ObjectId, ref: 'Client', required: [true, 'El cliente es obligatorio'],
+    }, cliente_snapshot: {
+        type: orderClientSnapshotSchema, required: [true, 'El snapshot del cliente es obligatorio'],
     }, productos: {
         type: [orderItemProductSchema], default: [],
     }, servicios: {

@@ -34,20 +34,28 @@ const invalidateCache = async () => {
     }
 };
 
-export async function getSuppliersService({page, limit, search}) {
-    const cacheKey = `suppliers:list:p${page}:l${limit}:q${search}`;
+export async function getSuppliersService({page, limit, search, sortBy = 'nombre', sortOrder = 'asc'}) {
+    const allowedSortFields = new Set(['codigo', 'nombre', 'correo', 'createdAt']);
+    const safeSortBy = allowedSortFields.has(sortBy) ? sortBy : 'nombre';
+    const safeSortOrder = sortOrder === 'desc' ? -1 : 1;
+    const cacheKey = `suppliers:list:p${page}:l${limit}:q${search}:s${safeSortBy}:o${safeSortOrder}`;
 
     const cached = await redisClient.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
     const filter = search ? {$text: {$search: search}, estado: 'activo'} : {estado: 'activo'};
 
-    const [total, proveedores] = await Promise.all([Supplier.countDocuments(filter), Supplier.find(filter)
+    const suppliersQuery = Supplier.find(filter)
         .select('-__v')
-        .sort({createdAt: -1})
+        .sort({[safeSortBy]: safeSortOrder, _id: 1})
         .skip((page - 1) * limit)
-        .limit(limit)
-        .lean(),]);
+        .limit(limit);
+
+    if (['codigo', 'nombre', 'correo'].includes(safeSortBy)) {
+        suppliersQuery.collation({locale: 'es', strength: 1});
+    }
+
+    const [total, proveedores] = await Promise.all([Supplier.countDocuments(filter), suppliersQuery.lean()]);
 
     const result = {
         success: true, data: proveedores, pagination: {

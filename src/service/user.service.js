@@ -36,20 +36,28 @@ const invalidateCache = async () => {
     }
 };
 
-export async function getUsersService({page, limit, search}) {
-    const cacheKey = `users:list:p${page}:l${limit}:q${search}`;
+export async function getUsersService({page, limit, search, sortBy = 'usuario', sortOrder = 'asc'}) {
+    const allowedSortFields = new Set(['usuario', 'nombre', 'correo', 'createdAt']);
+    const safeSortBy = allowedSortFields.has(sortBy) ? sortBy : 'usuario';
+    const safeSortOrder = sortOrder === 'desc' ? -1 : 1;
+    const cacheKey = `users:list:p${page}:l${limit}:q${search}:s${safeSortBy}:o${safeSortOrder}`;
 
     const cached = await redisClient.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
     const filter = search ? {$text: {$search: search}, estado: 'activo'} : {estado: 'activo'};
 
-    const [total, usuarios] = await Promise.all([User.countDocuments(filter), User.find(filter)
+    const usersQuery = User.find(filter)
         .select('-contrasena -__v')
-        .sort({createdAt: -1})
+        .sort({[safeSortBy]: safeSortOrder, _id: 1})
         .skip((page - 1) * limit)
-        .limit(limit)
-        .lean(),]);
+        .limit(limit);
+
+    if (['usuario', 'nombre', 'correo'].includes(safeSortBy)) {
+        usersQuery.collation({locale: 'es', strength: 1});
+    }
+
+    const [total, usuarios] = await Promise.all([User.countDocuments(filter), usersQuery.lean()]);
 
     const result = {
         success: true, data: usuarios, pagination: {total, page, limit, totalPages: Math.ceil(total / limit)},

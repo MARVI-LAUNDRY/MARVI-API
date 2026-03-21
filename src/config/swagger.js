@@ -182,13 +182,22 @@ const options = {
                         subtotal: {type: 'number', minimum: 0, example: 25.0},
                     },
                 },
+                OrderClientSnapshot: {
+                    type: 'object',
+                    required: ['codigo', 'nombre'],
+                    properties: {
+                        codigo: {type: 'string', example: 'CLI-001'},
+                        nombre: {type: 'string', example: 'Maria Garcia Lopez'},
+                    },
+                },
                 Order: {
                     type: 'object',
-                    required: ['codigo', 'cliente_id'],
+                    required: ['codigo', 'cliente_id', 'cliente_snapshot'],
                     properties: {
                         _id: {type: 'string', example: '64f1a2b3c4d5e6f7a8b9c0d4'},
                         codigo: {type: 'string', example: 'PED-001'},
                         cliente_id: {type: 'string', example: '64f1a2b3c4d5e6f7a8b9c0d3'},
+                        cliente_snapshot: {$ref: '#/components/schemas/OrderClientSnapshot'},
                         productos: {
                             type: 'array',
                             items: {$ref: '#/components/schemas/OrderItemProduct'},

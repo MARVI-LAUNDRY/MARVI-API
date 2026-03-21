@@ -31,6 +31,20 @@ const router = Router();
  *         schema:
  *           type: string
  *         description: Búsqueda de texto
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [codigo, nombre, correo, createdAt]
+ *           default: nombre
+ *         description: Campo por el que se ordena
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: asc
+ *         description: Dirección del ordenamiento
  *     responses:
  *       200:
  *         description: Lista de proveedores
@@ -47,7 +61,7 @@ router.get('/', verifyToken, authorize('administrador', 'usuario', 'invitado'), 
  * @swagger
  * /api/suppliers/{id}:
  *   get:
- *     summary: Obtener un proveedor por su id
+ *     summary: Obtener un proveedor por su ID
  *     tags: [Proveedores]
  *     security:
  *       - bearerAuth: []

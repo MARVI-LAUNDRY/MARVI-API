@@ -31,6 +31,20 @@ const router = Router();
  *         schema:
  *           type: string
  *         description: Búsqueda por texto en código
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [codigo, estado, total, createdAt]
+ *           default: codigo
+ *         description: Campo por el que se ordena
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: asc
+ *         description: Dirección del ordenamiento
  *     responses:
  *       200:
  *         description: Lista de pedidos
@@ -92,6 +106,20 @@ router.get('/code/:codigo', verifyToken, authorize('cliente'), getOrderByCode);
  *         schema:
  *           type: string
  *         description: Búsqueda por texto en código de pedido
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [codigo, estado, total, createdAt]
+ *           default: codigo
+ *         description: Campo por el que se ordena
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: asc
+ *         description: Dirección del ordenamiento
  *     responses:
  *       200:
  *         description: Lista de pedidos del cliente
@@ -110,7 +138,7 @@ router.get('/client/:clienteId', verifyToken, authorize('administrador', 'usuari
  * @swagger
  * /api/orders/{id}:
  *   get:
- *     summary: Obtener un pedido por id
+ *     summary: Obtener un pedido por ID
  *     tags: [Pedidos]
  *     security:
  *       - bearerAuth: []
@@ -156,6 +184,10 @@ router.get('/:id', verifyToken, authorize('administrador', 'usuario', 'invitado'
  *                 type: string
  *               cliente_id:
  *                 type: string
+ *                 description: ID del cliente activo
+ *               cliente_snapshot:
+ *                 readOnly: true
+ *                 description: Se genera automáticamente desde los datos actuales del cliente
  *               productos:
  *                 type: array
  *                 items:
@@ -261,9 +293,10 @@ router.patch('/:id', verifyToken, authorize('administrador', 'usuario'), require
  *             properties:
  *               cliente_id:
  *                 type: string
+ *                 description: Nuevo ID del cliente activo
  *     responses:
  *       200:
- *         description: Cliente del pedido actualizado
+ *         description: Cliente del pedido actualizado (incluye cliente_snapshot actualizado)
  *       400:
  *         description: Cliente inválido, campos no permitidos o ID inválido
  *       401:

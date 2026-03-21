@@ -25,8 +25,10 @@ export async function getPurchases(req, res) {
         const page = Math.max(1, parseInt(req.query.page) || 1);
         const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
         const search = req.query.search?.trim() || '';
+        const sortBy = req.query.sortBy?.trim() || 'codigo';
+        const sortOrder = req.query.sortOrder === 'desc' ? 'desc' : 'asc';
 
-        const result = await getPurchasesService({page, limit, search});
+        const result = await getPurchasesService({page, limit, search, sortBy, sortOrder});
         return res.json(result);
     } catch (err) {
         console.error('getPurchases:', err);

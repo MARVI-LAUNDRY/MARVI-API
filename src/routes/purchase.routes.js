@@ -31,6 +31,20 @@ const router = Router();
  *         schema:
  *           type: string
  *         description: Búsqueda por texto en código
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [codigo, total, createdAt]
+ *           default: codigo
+ *         description: Campo por el que se ordena
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: asc
+ *         description: Dirección del ordenamiento
  *     responses:
  *       200:
  *         description: Lista de compras

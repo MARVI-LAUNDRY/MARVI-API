@@ -33,8 +33,10 @@ export async function getOrders(req, res) {
         const page = Math.max(1, parseInt(req.query.page) || 1);
         const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
         const search = req.query.search?.trim() || '';
+        const sortBy = req.query.sortBy?.trim() || 'codigo';
+        const sortOrder = req.query.sortOrder === 'desc' ? 'desc' : 'asc';
 
-        const result = await getOrdersService({page, limit, search});
+        const result = await getOrdersService({page, limit, search, sortBy, sortOrder});
         return res.json(result);
     } catch (err) {
         console.error('getOrders:', err);
@@ -58,7 +60,11 @@ export async function getOrdersByClient(req, res) {
         }
 
         const search = req.query.search?.trim() || '';
-        const result = await getOrdersByClientService({clienteId: normalizedClientId, search});
+        const sortBy = req.query.sortBy?.trim() || 'codigo';
+        const sortOrder = req.query.sortOrder === 'desc' ? 'desc' : 'asc';
+        const result = await getOrdersByClientService({
+            clienteId: normalizedClientId, search, sortBy, sortOrder,
+        });
         return res.json(result);
     } catch (err) {
         const handled = handleOrderDomainError(err, res);

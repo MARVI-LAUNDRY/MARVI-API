@@ -33,6 +33,20 @@ const uploadServiceImage = createUploader('marvi/servicios');
  *         schema:
  *           type: string
  *         description: Búsqueda de texto
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [codigo, nombre, precio, createdAt]
+ *           default: nombre
+ *         description: Campo por el que se ordena
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: asc
+ *         description: Dirección del ordenamiento
  *     responses:
  *       200:
  *         description: Lista de servicios
@@ -49,7 +63,7 @@ router.get('/', verifyToken, authorize('administrador', 'usuario', 'invitado'), 
  * @swagger
  * /api/services/{id}:
  *   get:
- *     summary: Obtener un servicio por su id
+ *     summary: Obtener un servicio por su ID
  *     tags: [Servicios]
  *     security:
  *       - bearerAuth: []

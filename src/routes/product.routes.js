@@ -33,6 +33,20 @@ const uploadProductImage = createUploader('marvi/productos');
  *         schema:
  *           type: string
  *         description: Búsqueda de texto
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [codigo, nombre, precio, stock, createdAt]
+ *           default: nombre
+ *         description: Campo por el que se ordena
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: asc
+ *         description: Dirección del ordenamiento
  *     responses:
  *       200:
  *         description: Lista de productos
@@ -49,7 +63,7 @@ router.get('/', verifyToken, authorize('administrador', 'usuario', 'invitado'), 
  * @swagger
  * /api/products/{id}:
  *   get:
- *     summary: Obtener un producto por su id
+ *     summary: Obtener un producto por su ID
  *     tags: [Productos]
  *     security:
  *       - bearerAuth: []

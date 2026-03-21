@@ -10,8 +10,8 @@ function buildOrderCodeCacheKey(codigo) {
     return `orders:code:${codigo}`;
 }
 
-function buildOrdersByClientCacheKey(clienteId, search = '') {
-    return `orders:client:${clienteId}:q${search}`;
+function buildOrdersByClientCacheKey(clienteId, search = '', sortBy = 'codigo', sortOrder = 1) {
+    return `orders:client:${clienteId}:q${search}:s${sortBy}:o${sortOrder}`;
 }
 
 function buildDomainError(code, field = null) {
@@ -39,10 +39,30 @@ const invalidateCache = async () => {
     }
 };
 
-async function validateClientOrThrow(clienteId) {
-    const client = await Client.findById(clienteId).select('estado');
+async function getActiveClientOrThrow(clienteId) {
+    const client = await Client.findById(clienteId)
+        .select('codigo nombre primer_apellido segundo_apellido estado')
+        .lean();
     if (!client) throw buildDomainError('CLIENT_NOT_FOUND', 'cliente_id');
     if (client.estado !== 'activo') throw buildDomainError('CLIENT_INACTIVE', 'cliente_id');
+    return client;
+}
+
+function buildClientSnapshot(client) {
+    const nombreCompleto = [client?.nombre, client?.primer_apellido, client?.segundo_apellido]
+        .map((part) => String(part || '').trim())
+        .filter(Boolean)
+        .join(' ');
+
+    return {
+        codigo: String(client?.codigo || '').trim(),
+        nombre: nombreCompleto,
+    };
+}
+
+async function buildClientSnapshotOrThrow(clienteId) {
+    const client = await getActiveClientOrThrow(clienteId);
+    return buildClientSnapshot(client);
 }
 
 function parseQuantity(value) {
@@ -188,8 +208,11 @@ function computeOrderStockDeltaByProductId(previousProducts, nextProducts) {
     return delta;
 }
 
-export async function getOrdersService({page, limit, search}) {
-    const cacheKey = `orders:list:p${page}:l${limit}:q${search}`;
+export async function getOrdersService({page, limit, search, sortBy = 'codigo', sortOrder = 'asc'}) {
+    const allowedSortFields = new Set(['codigo', 'estado', 'total', 'createdAt']);
+    const safeSortBy = allowedSortFields.has(sortBy) ? sortBy : 'codigo';
+    const safeSortOrder = sortOrder === 'desc' ? -1 : 1;
+    const cacheKey = `orders:list:p${page}:l${limit}:q${search}:s${safeSortBy}:o${safeSortOrder}`;
 
     const cached = await redisClient.get(cacheKey);
     if (cached) return JSON.parse(cached);
@@ -197,12 +220,17 @@ export async function getOrdersService({page, limit, search}) {
     const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const filter = search ? {codigo: {$regex: escapedSearch, $options: 'i'}} : {};
 
-    const [total, pedidos] = await Promise.all([Order.countDocuments(filter), Order.find(filter)
+    const ordersQuery = Order.find(filter)
         .select('-__v')
-        .sort({createdAt: -1})
+        .sort({[safeSortBy]: safeSortOrder, _id: 1})
         .skip((page - 1) * limit)
-        .limit(limit)
-        .lean(),]);
+        .limit(limit);
+
+    if (['codigo', 'estado'].includes(safeSortBy)) {
+        ordersQuery.collation({locale: 'es', strength: 1});
+    }
+
+    const [total, pedidos] = await Promise.all([Order.countDocuments(filter), ordersQuery.lean()]);
 
     const result = {
         success: true, data: pedidos, pagination: {total, page, limit, totalPages: Math.ceil(total / limit)},
@@ -212,12 +240,15 @@ export async function getOrdersService({page, limit, search}) {
     return result;
 }
 
-export async function getOrdersByClientService({clienteId, search = ''}) {
+export async function getOrdersByClientService({clienteId, search = '', sortBy = 'codigo', sortOrder = 'asc'}) {
     const normalizedClientId = String(clienteId || '').trim();
     if (!normalizedClientId) throw buildDomainError('MISSING_CLIENT', 'cliente_id');
 
     const normalizedSearch = String(search || '').trim();
-    const cacheKey = buildOrdersByClientCacheKey(normalizedClientId, normalizedSearch);
+    const allowedSortFields = new Set(['codigo', 'estado', 'total', 'createdAt']);
+    const safeSortBy = allowedSortFields.has(sortBy) ? sortBy : 'codigo';
+    const safeSortOrder = sortOrder === 'desc' ? -1 : 1;
+    const cacheKey = buildOrdersByClientCacheKey(normalizedClientId, normalizedSearch, safeSortBy, safeSortOrder);
 
     const cached = await redisClient.get(cacheKey);
     if (cached) return JSON.parse(cached);
@@ -227,7 +258,13 @@ export async function getOrdersByClientService({clienteId, search = ''}) {
         cliente_id: normalizedClientId, ...(normalizedSearch ? {codigo: {$regex: escapedSearch, $options: 'i'}} : {}),
     };
 
-    const pedidos = await Order.find(filter).select('-__v').sort({createdAt: -1}).lean();
+    const ordersByClientQuery = Order.find(filter).select('-__v').sort({[safeSortBy]: safeSortOrder, _id: 1});
+
+    if (['codigo', 'estado'].includes(safeSortBy)) {
+        ordersByClientQuery.collation({locale: 'es', strength: 1});
+    }
+
+    const pedidos = await ordersByClientQuery.lean();
 
     const result = {
         success: true, data: pedidos, total: pedidos.length,
@@ -271,7 +308,7 @@ export async function setOrderService(orderData) {
     const normalizedCode = String(orderData.codigo || '').trim();
     if (!normalizedCode) throw buildDomainError('MISSING_CODE', 'codigo');
 
-    await validateClientOrThrow(orderData.cliente_id);
+    const clienteSnapshot = await buildClientSnapshotOrThrow(orderData.cliente_id);
 
     const normalizedProducts = await normalizeOrderProducts(orderData.productos);
     const normalizedServices = await normalizeOrderServices(orderData.servicios);
@@ -285,7 +322,12 @@ export async function setOrderService(orderData) {
     let newOrder;
     try {
         newOrder = await Order.create({
-            ...orderData, codigo: normalizedCode, productos: normalizedProducts, servicios: normalizedServices, total,
+            ...orderData,
+            codigo: normalizedCode,
+            cliente_snapshot: clienteSnapshot,
+            productos: normalizedProducts,
+            servicios: normalizedServices,
+            total,
         });
     } catch (err) {
         const rollbackDelta = Object.keys(stockDelta).reduce((acc, key) => {
@@ -319,9 +361,12 @@ export async function updateOrderClientService(id, clienteId) {
     const normalizedClientId = String(clienteId || '').trim();
     if (!normalizedClientId) throw buildDomainError('MISSING_CLIENT', 'cliente_id');
 
-    await validateClientOrThrow(normalizedClientId);
+    const clienteSnapshot = await buildClientSnapshotOrThrow(normalizedClientId);
 
-    const updatedOrder = await Order.findByIdAndUpdate(id, {cliente_id: normalizedClientId}, {
+    const updatedOrder = await Order.findByIdAndUpdate(id, {
+        cliente_id: normalizedClientId,
+        cliente_snapshot: clienteSnapshot,
+    }, {
         returnDocument: 'after', runValidators: true,
     }).select('-__v');
 

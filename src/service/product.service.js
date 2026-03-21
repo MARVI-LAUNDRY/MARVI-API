@@ -35,20 +35,28 @@ const invalidateCache = async () => {
     }
 };
 
-export async function getProductsService({page, limit, search}) {
-    const cacheKey = `products:list:p${page}:l${limit}:q${search}`;
+export async function getProductsService({page, limit, search, sortBy = 'nombre', sortOrder = 'asc'}) {
+    const allowedSortFields = new Set(['codigo', 'nombre', 'precio', 'stock', 'createdAt']);
+    const safeSortBy = allowedSortFields.has(sortBy) ? sortBy : 'nombre';
+    const safeSortOrder = sortOrder === 'desc' ? -1 : 1;
+    const cacheKey = `products:list:p${page}:l${limit}:q${search}:s${safeSortBy}:o${safeSortOrder}`;
 
     const cached = await redisClient.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
     const filter = search ? {$text: {$search: search}, estado: 'activo'} : {estado: 'activo'};
 
-    const [total, products] = await Promise.all([Product.countDocuments(filter), Product.find(filter)
+    const productsQuery = Product.find(filter)
         .select('-__v')
-        .sort({createdAt: -1})
+        .sort({[safeSortBy]: safeSortOrder, _id: 1})
         .skip((page - 1) * limit)
-        .limit(limit)
-        .lean(),]);
+        .limit(limit);
+
+    if (['codigo', 'nombre'].includes(safeSortBy)) {
+        productsQuery.collation({locale: 'es', strength: 1});
+    }
+
+    const [total, products] = await Promise.all([Product.countDocuments(filter), productsQuery.lean()]);
 
     const result = {
         success: true, data: products, pagination: {total, page, limit, totalPages: Math.ceil(total / limit)},

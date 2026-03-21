@@ -121,8 +121,11 @@ function computeDeltaByProductId(previousItems, nextItems) {
     return delta;
 }
 
-export async function getPurchasesService({page, limit, search}) {
-    const cacheKey = `purchases:list:p${page}:l${limit}:q${search}`;
+export async function getPurchasesService({page, limit, search, sortBy = 'codigo', sortOrder = 'asc'}) {
+    const allowedSortFields = new Set(['codigo', 'total', 'createdAt']);
+    const safeSortBy = allowedSortFields.has(sortBy) ? sortBy : 'codigo';
+    const safeSortOrder = sortOrder === 'desc' ? -1 : 1;
+    const cacheKey = `purchases:list:p${page}:l${limit}:q${search}:s${safeSortBy}:o${safeSortOrder}`;
 
     const cached = await redisClient.get(cacheKey);
     if (cached) return JSON.parse(cached);
@@ -130,12 +133,17 @@ export async function getPurchasesService({page, limit, search}) {
     const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const filter = search ? {codigo: {$regex: escapedSearch, $options: 'i'}} : {};
 
-    const [total, compras] = await Promise.all([Purchase.countDocuments(filter), Purchase.find(filter)
+    const purchasesQuery = Purchase.find(filter)
         .select('-__v')
-        .sort({createdAt: -1})
+        .sort({[safeSortBy]: safeSortOrder, _id: 1})
         .skip((page - 1) * limit)
-        .limit(limit)
-        .lean(),]);
+        .limit(limit);
+
+    if (safeSortBy === 'codigo') {
+        purchasesQuery.collation({locale: 'es', strength: 1});
+    }
+
+    const [total, compras] = await Promise.all([Purchase.countDocuments(filter), purchasesQuery.lean()]);
 
     const result = {
         success: true, data: compras, pagination: {total, page, limit, totalPages: Math.ceil(total / limit)},
