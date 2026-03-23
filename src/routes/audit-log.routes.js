@@ -22,30 +22,26 @@ const router = Router();
  *         name: limit
  *         schema:
  *           type: integer
- *           default: 20
+ *           default: 10
  *       - in: query
- *         name: usuarioId
+ *         name: search
  *         schema:
  *           type: string
+ *         description: Búsqueda por usuario, acción, entidad, id/código y ruta
  *       - in: query
- *         name: accion
+ *         name: sortBy
  *         schema:
  *           type: string
- *           enum: [creo, actualizo, borro, modifico]
+ *           enum: [usuario_nombre, usuario_rol, accion, entidad, entidad_id, entidad_codigo, createdAt, fecha_registro]
+ *           default: createdAt
+ *         description: Campo por el que se ordena
  *       - in: query
- *         name: entidad
+ *         name: sortOrder
  *         schema:
  *           type: string
- *       - in: query
- *         name: desde
- *         schema:
- *           type: string
- *           format: date-time
- *       - in: query
- *         name: hasta
- *         schema:
- *           type: string
- *           format: date-time
+ *           enum: [asc, desc]
+ *           default: desc
+ *         description: Dirección del ordenamiento
  *     responses:
  *       200:
  *         description: Lista de audit logs
@@ -60,6 +56,33 @@ router.get('/', verifyToken, authorize('administrador', 'usuario'), getAuditLogs
  *     tags: [Bitácoras]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [usuario_nombre, usuario_rol, accion, entidad, entidad_id, entidad_codigo, createdAt, fecha_registro]
+ *           default: createdAt
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
  *     responses:
  *       200:
  *         description: Lista de audit logs del usuario autenticado

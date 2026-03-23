@@ -7,6 +7,7 @@ import serviceRoutes from './service.routes.js';
 import purchaseRoutes from './purchase.routes.js';
 import orderRoutes from './order.routes.js';
 import auditLogRoutes from './audit-log.routes.js';
+import reportRoutes from './report.routes.js';
 
 const router = Router();
 
@@ -34,6 +35,9 @@ router.use('/orders', orderRoutes);
 // Rutas de audit logs
 router.use('/audit-logs', auditLogRoutes);
 router.use('/bitacoras', auditLogRoutes);
+
+// Rutas de reportes
+router.use('/reports', reportRoutes);
 
 /**
  * @swagger

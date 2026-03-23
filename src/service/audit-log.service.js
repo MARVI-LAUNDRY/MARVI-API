@@ -24,24 +24,29 @@ function sanitizeAuditLogPayload(data = {}) {
     return payload;
 }
 
-function buildDateRangeFilter(desde, hasta) {
-    const dateFilter = {};
+function escapeRegex(value) {
+    return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
-    if (desde) {
-        const parsedDesde = new Date(desde);
-        if (!Number.isNaN(parsedDesde.getTime())) {
-            dateFilter.$gte = parsedDesde;
-        }
-    }
+function buildAuditSearchFilter(search) {
+    const normalizedSearch = String(search || '').trim();
+    if (!normalizedSearch) return null;
 
-    if (hasta) {
-        const parsedHasta = new Date(hasta);
-        if (!Number.isNaN(parsedHasta.getTime())) {
-            dateFilter.$lte = parsedHasta;
-        }
-    }
+    const escapedSearch = escapeRegex(normalizedSearch);
+    const searchRegex = new RegExp(escapedSearch, 'i');
 
-    return Object.keys(dateFilter).length > 0 ? dateFilter : null;
+    return {
+        $or: [
+            {usuario_nombre: searchRegex},
+            {usuario_rol: searchRegex},
+            {accion: searchRegex},
+            {entidad: searchRegex},
+            {entidad_id: searchRegex},
+            {entidad_codigo: searchRegex},
+            {'request_meta.path': searchRegex},
+            {'request_meta.method': searchRegex},
+        ],
+    };
 }
 
 export async function recordAuditLogService(data) {
@@ -54,26 +59,48 @@ export async function recordAuditLogService(data) {
 }
 
 export async function getAuditLogsService({
-                                              page = 1, limit = 20, usuarioId, accion, entidad, desde, hasta,
+                                              page = 1,
+                                              limit = 10,
+                                              search = '',
+                                              sortBy = 'createdAt',
+                                              sortOrder = 'desc',
+                                              usuarioId,
                                           }) {
     const safePage = Math.max(1, Number(page) || 1);
-    const safeLimit = Math.min(100, Math.max(1, Number(limit) || 20));
+    const safeLimit = Math.min(100, Math.max(1, Number(limit) || 10));
+    const allowedSortFields = new Set([
+        'usuario_nombre',
+        'usuario_rol',
+        'accion',
+        'entidad',
+        'entidad_id',
+        'entidad_codigo',
+        'createdAt',
+        'fecha_registro',
+    ]);
+    const safeSortBy = allowedSortFields.has(sortBy) ? sortBy : 'createdAt';
+    const safeSortOrder = sortOrder === 'asc' ? 1 : -1;
 
     const filter = {};
 
     if (usuarioId) filter.usuario_id = String(usuarioId).trim();
-    if (accion) filter.accion = String(accion).trim().toLowerCase();
-    if (entidad) filter.entidad = String(entidad).trim().toLowerCase();
 
-    const dateRange = buildDateRangeFilter(desde, hasta);
-    if (dateRange) filter.createdAt = dateRange;
+    const searchFilter = buildAuditSearchFilter(search);
+    if (searchFilter) {
+        filter.$and = [...(filter.$and || []), searchFilter];
+    }
 
-    const [total, logs] = await Promise.all([AuditLog.countDocuments(filter), AuditLog.find(filter)
+    const logsQuery = AuditLog.find(filter)
         .select('-__v')
-        .sort({createdAt: -1})
+        .sort({[safeSortBy]: safeSortOrder, _id: 1})
         .skip((safePage - 1) * safeLimit)
-        .limit(safeLimit)
-        .lean(),]);
+        .limit(safeLimit);
+
+    if (['usuario_nombre', 'usuario_rol', 'accion', 'entidad', 'entidad_codigo'].includes(safeSortBy)) {
+        logsQuery.collation({locale: 'es', strength: 1});
+    }
+
+    const [total, logs] = await Promise.all([AuditLog.countDocuments(filter), logsQuery.lean()]);
 
     return {
         success: true, data: logs, pagination: {

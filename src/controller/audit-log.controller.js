@@ -3,14 +3,18 @@ import {getAuditLogByIdService, getAuditLogsService} from '../service/audit-log.
 
 export async function getAuditLogs(req, res) {
     try {
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
+        const search = req.query.search?.trim() || '';
+        const sortBy = req.query.sortBy?.trim() || 'createdAt';
+        const sortOrder = req.query.sortOrder === 'asc' ? 'asc' : 'desc';
+
         const result = await getAuditLogsService({
-            page: req.query.page,
-            limit: req.query.limit,
-            usuarioId: req.query.usuarioId,
-            accion: req.query.accion,
-            entidad: req.query.entidad,
-            desde: req.query.desde,
-            hasta: req.query.hasta,
+            page,
+            limit,
+            search,
+            sortBy,
+            sortOrder,
         });
 
         return res.json(result);
@@ -22,14 +26,19 @@ export async function getAuditLogs(req, res) {
 
 export async function getMyAuditLogs(req, res) {
     try {
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
+        const search = req.query.search?.trim() || '';
+        const sortBy = req.query.sortBy?.trim() || 'createdAt';
+        const sortOrder = req.query.sortOrder === 'asc' ? 'asc' : 'desc';
+
         const result = await getAuditLogsService({
-            page: req.query.page,
-            limit: req.query.limit,
+            page,
+            limit,
+            search,
+            sortBy,
+            sortOrder,
             usuarioId: req.auth?.id,
-            accion: req.query.accion,
-            entidad: req.query.entidad,
-            desde: req.query.desde,
-            hasta: req.query.hasta,
         });
 
         return res.json(result);

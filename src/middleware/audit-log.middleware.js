@@ -48,6 +48,33 @@ function normalizeEntityCode(value) {
     return normalized || null;
 }
 
+function normalizeEntityId(value) {
+    const normalized = String(value || '').trim();
+    return normalized || null;
+}
+
+function getEntityIdFromRequest(req) {
+    const candidates = [
+        req.params?.id,
+        req.params?.usuarioId,
+        req.params?.clienteId,
+        req.params?.proveedorId,
+        req.body?._id,
+        req.body?.id,
+        req.body?.usuario_id,
+        req.body?.cliente_id,
+        req.body?.proveedor_id,
+        req.query?.id,
+    ];
+
+    for (const candidate of candidates) {
+        const normalized = normalizeEntityId(candidate);
+        if (normalized) return normalized;
+    }
+
+    return null;
+}
+
 function getEntityCodeFromRequest(req) {
     const candidates = [req.params?.codigo, req.body?.codigo, req.params?.usuario, req.body?.usuario, req.params?.correo, req.body?.correo,];
 
@@ -59,6 +86,18 @@ function getEntityCodeFromRequest(req) {
     }
 
     return null;
+}
+
+function extractEntityDataFromResponseBody(body) {
+    const source = body?.data ?? body;
+    if (!source || Array.isArray(source) || typeof source !== 'object') {
+        return {entidadId: null, entidadCodigo: null};
+    }
+
+    const entidadId = normalizeEntityId(source._id || source.id || source.entidad_id);
+    const entidadCodigo = normalizeEntityCode(source.codigo || source.usuario || source.correo || source.entidad_codigo);
+
+    return {entidadId, entidadCodigo};
 }
 
 async function getEntityCodeFromDatabase(resource, entidadId) {
@@ -91,6 +130,34 @@ async function getEntityCodeFromDatabase(resource, entidadId) {
     return null;
 }
 
+async function getEntityIdFromDatabase(resource, entidadCodigo) {
+    const normalizedCode = normalizeEntityCode(entidadCodigo);
+    if (!normalizedCode) {
+        return null;
+    }
+
+    const model = MODEL_BY_RESOURCE[resource];
+    const fields = CODE_FIELDS_BY_RESOURCE[resource] || ['codigo'];
+
+    if (!model) {
+        return null;
+    }
+
+    try {
+        for (const fieldName of fields) {
+            const doc = await model.findOne({[fieldName]: normalizedCode}).select('_id').lean();
+            const normalizedId = normalizeEntityId(doc?._id);
+            if (normalizedId) {
+                return normalizedId;
+            }
+        }
+    } catch (error) {
+        console.error('getEntityIdFromDatabase:', error.message);
+    }
+
+    return null;
+}
+
 async function resolveEntityCode(req, resource, entidadId) {
     const fromRequest = getEntityCodeFromRequest(req);
     if (fromRequest) {
@@ -103,10 +170,11 @@ async function resolveEntityCode(req, resource, entidadId) {
 function getEntityData(req) {
     const cleanPath = req.originalUrl.split('?')[0];
     const segments = cleanPath.split('/').filter(Boolean);
-    const resource = segments[1] || 'desconocido';
+    const apiIndex = segments.indexOf('api');
+    const resource = (apiIndex >= 0 ? segments[apiIndex + 1] : segments[0]) || 'desconocido';
     const entidad = ENTITY_BY_RESOURCE[resource] || resource;
 
-    const entidadId = String(req.params?.id || req.params?.codigo || req.params?.clienteId || req.params?.proveedorId || '').trim() || null;
+    const entidadId = getEntityIdFromRequest(req);
 
     return {resource, entidad, entidadId};
 }
@@ -127,7 +195,17 @@ export function auditLogMiddleware(req, res, next) {
         return next();
     }
 
-    const entityCodePromise = resolveEntityCode(req, resource, entidadId);
+    let responseEntityId = null;
+    let responseEntityCode = null;
+    const fallbackEntityCodePromise = resolveEntityCode(req, resource, entidadId);
+
+    const originalJson = res.json.bind(res);
+    res.json = (body) => {
+        const extracted = extractEntityDataFromResponseBody(body);
+        responseEntityId = extracted.entidadId;
+        responseEntityCode = extracted.entidadCodigo;
+        return originalJson(body);
+    };
 
     res.on('finish', async () => {
         if (!req.auth?.id || res.statusCode >= 400) {
@@ -136,7 +214,33 @@ export function auditLogMiddleware(req, res, next) {
 
         const actorName = getActorName(req.auth);
         const accion = METHOD_TO_ACTION[req.method] || 'modifico';
-        const entidadCodigo = await entityCodePromise;
+        let resolvedEntityId = responseEntityId || entidadId || getEntityIdFromRequest(req);
+        let entidadCodigo = responseEntityCode || getEntityCodeFromRequest(req);
+
+        if (!resolvedEntityId && entidadCodigo) {
+            resolvedEntityId = await getEntityIdFromDatabase(resource, entidadCodigo);
+        }
+        if (!entidadCodigo && resolvedEntityId) {
+            entidadCodigo = await getEntityCodeFromDatabase(resource, resolvedEntityId);
+        }
+        if (!entidadCodigo) {
+            entidadCodigo = await fallbackEntityCodePromise;
+        }
+
+        if (!resolvedEntityId && entidadCodigo) {
+            resolvedEntityId = await getEntityIdFromDatabase(resource, entidadCodigo);
+        }
+
+        if (!resolvedEntityId || !entidadCodigo) {
+            console.warn('auditLogMiddleware: registro omitido por entidad incompleta', {
+                resource,
+                method: req.method,
+                path: req.originalUrl,
+                entidad_id: resolvedEntityId,
+                entidad_codigo: entidadCodigo,
+            });
+            return;
+        }
 
         await recordAuditLogService({
             usuario_id: String(req.auth?.id || '').trim() || null,
@@ -144,7 +248,7 @@ export function auditLogMiddleware(req, res, next) {
             usuario_rol: String(req.auth?.rol || 'desconocido').trim(),
             accion,
             entidad,
-            entidad_id: entidadId,
+            entidad_id: resolvedEntityId,
             entidad_codigo: entidadCodigo,
             request_meta: {
                 method: req.method,
