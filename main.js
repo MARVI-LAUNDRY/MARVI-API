@@ -8,6 +8,7 @@ import connectDB from './src/config/db.js';
 import {connectRedis} from './src/config/redis.js';
 import routes from './src/routes/index.js';
 import swaggerSpec from './src/config/swagger.js';
+import {auditLogMiddleware} from './src/middleware/audit-log.middleware.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,6 +21,9 @@ const __dirname = path.dirname(__filename);
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
+
+// Registra operaciones mutables de usuarios autenticados.
+app.use('/api', auditLogMiddleware);
 
 // Documentación Swagger
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -76,4 +80,3 @@ start()
         console.error('Error al iniciar el servidor:', error.message);
         process.exit(1);
     });
-
