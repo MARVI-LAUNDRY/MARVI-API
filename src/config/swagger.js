@@ -3,26 +3,21 @@ import swaggerJsdoc from 'swagger-jsdoc';
 /** @type {import('swagger-jsdoc').Options} */
 const options = {
     definition: {
-        openapi: '3.0.0',
-        info: {
+        openapi: '3.0.0', info: {
             title: 'MARVI API', version: '1.0.0', description: 'Documentación del API REST de la Lavandería MARVI',
-        },
-        tags: [{name: 'Estado', description: 'Estado del servidor'}, {
-            name: 'Usuarios',
-            description: 'Gestión de usuarios'
+        }, tags: [{name: 'Estado', description: 'Estado del servidor'}, {
+            name: 'Usuarios', description: 'Gestión de usuarios'
         }, {name: 'Clientes', description: 'Gestión de clientes'}, {
-            name: 'Proveedores',
-            description: 'Gestión de proveedores'
+            name: 'Proveedores', description: 'Gestión de proveedores'
         }, {name: 'Productos', description: 'Gestión de productos'}, {
-            name: 'Servicios',
-            description: 'Gestión de servicios'
-        }, {name: 'Compras', description: 'Gestión de compras'}, {name: 'Pedidos', description: 'Gestión de pedidos'},],
-        servers: [{
+            name: 'Servicios', description: 'Gestión de servicios'
+        }, {name: 'Compras', description: 'Gestión de compras'}, {name: 'Pedidos', description: 'Gestión de pedidos'}, {
+            name: 'Bitácoras', description: 'Audit log de operaciones de usuarios'
+        },], servers: [{
             url: 'https://marvi-api.onrender.com', description: 'Servidor de en render',
         }, {
             url: 'http://localhost:2026', description: 'Servidor de desarrollo',
-        },],
-        components: {
+        },], components: {
             securitySchemes: {
                 bearerAuth: {
                     type: 'http', scheme: 'bearer', bearerFormat: 'JWT',
