@@ -57,7 +57,7 @@ router.get('/', verifyToken, authorize('administrador', 'usuario'), getAuditLogs
  * /api/audit-logs/me:
  *   get:
  *     summary: Listar mis operaciones en audit log
- *     tags: [AuditLogs]
+ *     tags: [Bitácoras]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -71,7 +71,7 @@ router.get('/me', verifyToken, authorize('administrador', 'usuario', 'invitado',
  * /api/audit-logs/{id}:
  *   get:
  *     summary: Obtener un audit log por ID
- *     tags: [AuditLogs]
+ *     tags: [Bitácoras]
  *     security:
  *       - bearerAuth: []
  *     parameters:

@@ -13,10 +13,8 @@ const auditLogSchema = new mongoose.Schema({
         type: String, required: [true, 'La entidad es obligatoria'], trim: true,
     }, entidad_id: {
         type: String, default: null, trim: true,
-    }, descripcion: {
-        type: String, required: [true, 'La descripcion es obligatoria'], trim: true,
-    }, detalle: {
-        type: mongoose.Schema.Types.Mixed, default: {},
+    }, entidad_codigo: {
+        type: String, default: null, trim: true,
     }, request_meta: {
         method: {type: String, trim: true},
         path: {type: String, trim: true},
@@ -33,6 +31,7 @@ const auditLogSchema = new mongoose.Schema({
 auditLogSchema.index({createdAt: -1});
 auditLogSchema.index({usuario_id: 1, createdAt: -1});
 auditLogSchema.index({entidad: 1, createdAt: -1});
+auditLogSchema.index({entidad: 1, entidad_codigo: 1, createdAt: -1});
 auditLogSchema.index({accion: 1, createdAt: -1});
 
 const AuditLog = mongoose.model('AuditLog', auditLogSchema);

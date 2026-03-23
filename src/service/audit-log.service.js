@@ -1,5 +1,29 @@
 import AuditLog from '../model/audit-log.model.js';
 
+const AUDIT_LOG_ALLOWED_FIELDS = new Set([
+    'usuario_id',
+    'usuario_nombre',
+    'usuario_rol',
+    'accion',
+    'entidad',
+    'entidad_id',
+    'entidad_codigo',
+    'request_meta',
+    'fecha_registro',
+]);
+
+function sanitizeAuditLogPayload(data = {}) {
+    const payload = {};
+
+    for (const [key, value] of Object.entries(data)) {
+        if (AUDIT_LOG_ALLOWED_FIELDS.has(key)) {
+            payload[key] = value;
+        }
+    }
+
+    return payload;
+}
+
 function buildDateRangeFilter(desde, hasta) {
     const dateFilter = {};
 
@@ -22,7 +46,7 @@ function buildDateRangeFilter(desde, hasta) {
 
 export async function recordAuditLogService(data) {
     try {
-        await AuditLog.create(data);
+        await AuditLog.create(sanitizeAuditLogPayload(data));
     } catch (error) {
         // El audit log no debe romper la operacion principal.
         console.error('recordAuditLogService:', error.message);
