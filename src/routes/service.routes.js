@@ -57,7 +57,7 @@ const uploadServiceImage = createUploader('marvi/servicios');
  *       500:
  *         description: Error interno del servidor
  */
-router.get('/', verifyToken, authorize('administrador', 'usuario', 'invitado'), getServices);
+router.get('/', verifyToken, authorize('administrador', 'usuario', 'invitado', 'cliente'), getServices);
 
 /**
  * @swagger

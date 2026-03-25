@@ -91,7 +91,7 @@ router.get('/code/:codigo', verifyToken, authorize('cliente'), getOrderByCode);
  * @swagger
  * /api/orders/client/{clienteId}:
  *   get:
- *     summary: Listar pedidos de un cliente (sin paginación)
+ *     summary: Listar pedidos de un cliente (paginado)
  *     tags: [Pedidos]
  *     security:
  *       - bearerAuth: []
@@ -101,6 +101,16 @@ router.get('/code/:codigo', verifyToken, authorize('cliente'), getOrderByCode);
  *         required: true
  *         schema:
  *           type: string
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
  *       - in: query
  *         name: search
  *         schema:

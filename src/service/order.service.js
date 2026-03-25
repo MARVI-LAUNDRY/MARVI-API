@@ -10,8 +10,8 @@ function buildOrderCodeCacheKey(codigo) {
     return `orders:code:${codigo}`;
 }
 
-function buildOrdersByClientCacheKey(clienteId, search = '', sortBy = 'codigo', sortOrder = 1) {
-    return `orders:client:${clienteId}:q${search}:s${sortBy}:o${sortOrder}`;
+function buildOrdersByClientCacheKey(clienteId, page = 1, limit = 10, search = '', sortBy = 'codigo', sortOrder = 1) {
+    return `orders:client:${clienteId}:p${page}:l${limit}:q${search}:s${sortBy}:o${sortOrder}`;
 }
 
 function buildDomainError(code, field = null) {
@@ -55,8 +55,7 @@ function buildClientSnapshot(client) {
         .join(' ');
 
     return {
-        codigo: String(client?.codigo || '').trim(),
-        nombre: nombreCompleto,
+        codigo: String(client?.codigo || '').trim(), nombre: nombreCompleto,
     };
 }
 
@@ -240,15 +239,24 @@ export async function getOrdersService({page, limit, search, sortBy = 'codigo', 
     return result;
 }
 
-export async function getOrdersByClientService({clienteId, search = '', sortBy = 'codigo', sortOrder = 'asc'}) {
+export async function getOrdersByClientService({
+                                                   clienteId,
+                                                   page = 1,
+                                                   limit = 10,
+                                                   search = '',
+                                                   sortBy = 'codigo',
+                                                   sortOrder = 'asc'
+                                               }) {
     const normalizedClientId = String(clienteId || '').trim();
     if (!normalizedClientId) throw buildDomainError('MISSING_CLIENT', 'cliente_id');
 
+    const safePage = Math.max(1, parseInt(page) || 1);
+    const safeLimit = Math.min(100, Math.max(1, parseInt(limit) || 10));
     const normalizedSearch = String(search || '').trim();
     const allowedSortFields = new Set(['codigo', 'estado', 'total', 'createdAt']);
     const safeSortBy = allowedSortFields.has(sortBy) ? sortBy : 'codigo';
     const safeSortOrder = sortOrder === 'desc' ? -1 : 1;
-    const cacheKey = buildOrdersByClientCacheKey(normalizedClientId, normalizedSearch, safeSortBy, safeSortOrder);
+    const cacheKey = buildOrdersByClientCacheKey(normalizedClientId, safePage, safeLimit, normalizedSearch, safeSortBy, safeSortOrder);
 
     const cached = await redisClient.get(cacheKey);
     if (cached) return JSON.parse(cached);
@@ -258,16 +266,22 @@ export async function getOrdersByClientService({clienteId, search = '', sortBy =
         cliente_id: normalizedClientId, ...(normalizedSearch ? {codigo: {$regex: escapedSearch, $options: 'i'}} : {}),
     };
 
-    const ordersByClientQuery = Order.find(filter).select('-__v').sort({[safeSortBy]: safeSortOrder, _id: 1});
+    const ordersByClientQuery = Order.find(filter)
+        .select('-__v')
+        .sort({[safeSortBy]: safeSortOrder, _id: 1})
+        .skip((safePage - 1) * safeLimit)
+        .limit(safeLimit);
 
     if (['codigo', 'estado'].includes(safeSortBy)) {
         ordersByClientQuery.collation({locale: 'es', strength: 1});
     }
 
-    const pedidos = await ordersByClientQuery.lean();
+    const [total, pedidos] = await Promise.all([Order.countDocuments(filter), ordersByClientQuery.lean()]);
 
     const result = {
-        success: true, data: pedidos, total: pedidos.length,
+        success: true,
+        data: pedidos,
+        pagination: {total, page: safePage, limit: safeLimit, totalPages: Math.ceil(total / safeLimit)},
     };
 
     await redisClient.setex(cacheKey, CACHE_TTL, JSON.stringify(result));
@@ -364,8 +378,7 @@ export async function updateOrderClientService(id, clienteId) {
     const clienteSnapshot = await buildClientSnapshotOrThrow(normalizedClientId);
 
     const updatedOrder = await Order.findByIdAndUpdate(id, {
-        cliente_id: normalizedClientId,
-        cliente_snapshot: clienteSnapshot,
+        cliente_id: normalizedClientId, cliente_snapshot: clienteSnapshot,
     }, {
         returnDocument: 'after', runValidators: true,
     }).select('-__v');

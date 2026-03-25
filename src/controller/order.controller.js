@@ -48,6 +48,8 @@ export async function getOrdersByClient(req, res) {
     try {
         const {clienteId} = req.params;
         const normalizedClientId = String(clienteId || '').trim();
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
 
         if (!mongoose.Types.ObjectId.isValid(normalizedClientId)) {
             return res.status(400).json({success: false, message: 'ID de cliente inválido'});
@@ -63,7 +65,7 @@ export async function getOrdersByClient(req, res) {
         const sortBy = req.query.sortBy?.trim() || 'codigo';
         const sortOrder = req.query.sortOrder === 'desc' ? 'desc' : 'asc';
         const result = await getOrdersByClientService({
-            clienteId: normalizedClientId, search, sortBy, sortOrder,
+            clienteId: normalizedClientId, page, limit, search, sortBy, sortOrder,
         });
         return res.json(result);
     } catch (err) {
