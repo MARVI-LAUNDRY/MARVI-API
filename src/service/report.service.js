@@ -201,7 +201,7 @@ export async function getTopProductsReportService({from, to, limit = 10}) {
     const {start, end} = getDateRange(from, to);
     const safeLimit = Math.min(50, Math.max(1, Number(limit) || 10));
 
-    const sold = await Order.aggregate([{
+    const [soldProducts, soldServices, bought] = await Promise.all([Order.aggregate([{
         $match: {
             ...buildCreatedAtMatch(start, end), estado: {$ne: 'cancelado'},
         },
@@ -212,27 +212,47 @@ export async function getTopProductsReportService({from, to, limit = 10}) {
             cantidad: {$sum: '$productos.cantidad'},
             ingresos: {$sum: '$productos.subtotal'},
         },
-    }, {$sort: {cantidad: -1, ingresos: -1}}, {$limit: safeLimit},]);
-
-    const bought = await Purchase.aggregate([{$match: buildCreatedAtMatch(start, end)}, {$unwind: '$productos'}, {
+    }, {$sort: {cantidad: -1, ingresos: -1}}, {$limit: safeLimit},]), Order.aggregate([{
+        $match: {
+            ...buildCreatedAtMatch(start, end), estado: {$ne: 'cancelado'},
+        },
+    }, {$unwind: '$servicios'}, {
+        $group: {
+            _id: '$servicios.codigo',
+            nombre: {$first: '$servicios.nombre'},
+            cantidad: {$sum: '$servicios.cantidad'},
+            ingresos: {$sum: '$servicios.subtotal'},
+        },
+    }, {$sort: {cantidad: -1, ingresos: -1}}, {$limit: safeLimit},]), Purchase.aggregate([{
+        $match: buildCreatedAtMatch(start, end)
+    }, {$unwind: '$productos'}, {
         $group: {
             _id: '$productos.codigo',
             nombre: {$first: '$productos.nombre'},
             cantidad: {$sum: '$productos.cantidad'},
             gastos: {$sum: '$productos.subtotal'},
         },
-    }, {$sort: {cantidad: -1, gastos: -1}}, {$limit: safeLimit},]);
+    }, {$sort: {cantidad: -1, gastos: -1}}, {$limit: safeLimit},]),]);
+
+    const sold = [...soldProducts.map((item) => ({
+        codigo: item._id,
+        nombre: item.nombre,
+        tipo: 'producto',
+        cantidad: Number(item.cantidad || 0),
+        ingresos: Number(item.ingresos || 0),
+    })), ...soldServices.map((item) => ({
+        codigo: item._id,
+        nombre: item.nombre,
+        tipo: 'servicio',
+        cantidad: Number(item.cantidad || 0),
+        ingresos: Number(item.ingresos || 0),
+    }))].sort((a, b) => (b.cantidad - a.cantidad) || (b.ingresos - a.ingresos)).slice(0, safeLimit);
 
     return {
         success: true, data: {
             rango: {
                 desde: start.toISOString(), hasta: end.toISOString(),
-            }, mas_vendidos: sold.map((item) => ({
-                codigo: item._id,
-                nombre: item.nombre,
-                cantidad: Number(item.cantidad || 0),
-                ingresos: Number(item.ingresos || 0),
-            })), mas_comprados: bought.map((item) => ({
+            }, mas_vendidos: sold, mas_comprados: bought.map((item) => ({
                 codigo: item._id,
                 nombre: item.nombre,
                 cantidad: Number(item.cantidad || 0),
