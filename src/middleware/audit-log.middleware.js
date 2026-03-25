@@ -184,7 +184,7 @@ function getActorName(auth) {
     return String(auth?.usuario || auth?.correo || fallback || 'usuario').trim();
 }
 
-export function auditLogMiddleware(req, res, next) {
+export async function auditLogMiddleware(req, res, next) {
     if (!MUTATING_METHODS.has(req.method)) {
         return next();
     }
@@ -197,7 +197,15 @@ export function auditLogMiddleware(req, res, next) {
 
     let responseEntityId = null;
     let responseEntityCode = null;
-    const fallbackEntityCodePromise = resolveEntityCode(req, resource, entidadId);
+
+    let preDeleteEntityCode = null;
+    if (req.method === 'DELETE' && entidadId) {
+        preDeleteEntityCode = await getEntityCodeFromDatabase(resource, entidadId);
+    }
+
+    const fallbackEntityCodePromise = preDeleteEntityCode
+        ? Promise.resolve(preDeleteEntityCode)
+        : resolveEntityCode(req, resource, entidadId);
 
     const originalJson = res.json.bind(res);
     res.json = (body) => {

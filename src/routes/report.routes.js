@@ -45,7 +45,7 @@ const router = Router();
  *           maximum: 50
  *     responses:
  *       200:
- *         description: Contadores, serie temporal y top de productos
+ *         description: Contadores, serie temporal y top de productos y servicios
  */
 router.get('/dashboard', verifyToken, authorize('administrador', 'usuario', 'invitado'), getDashboardReport);
 
@@ -118,7 +118,7 @@ router.get('/series', verifyToken, authorize('administrador', 'usuario', 'invita
  * @swagger
  * /api/reports/top-products:
  *   get:
- *     summary: Obtener productos mas vendidos y mas comprados
+ *     summary: Obtener items mas vendidos (productos y servicios) y productos mas comprados
  *     tags: [Reportes]
  *     security:
  *       - bearerAuth: []
@@ -142,7 +142,7 @@ router.get('/series', verifyToken, authorize('administrador', 'usuario', 'invita
  *           maximum: 50
  *     responses:
  *       200:
- *         description: Ranking de productos para graficos de barras
+ *         description: Ranking de items vendidos y productos comprados para graficos de barras
  */
 router.get('/top-products', verifyToken, authorize('administrador', 'usuario', 'invitado'), getTopProductsReport);
 
